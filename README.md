@@ -75,6 +75,70 @@
 5. 通过 `ROLE_SKILLS_INDEX.md` 找到对应岗位 Skill 并直接使用。
 6. 每次关键决策、范围调整、试玩反馈都追加到 `99-过程记录/`。
 
+## 运行与协作（多角色共识系统）
+
+仓库内已提供可单机运行的多角色后台共识系统，支持：
+
+- 多角色共享 `project-drive` 目录上下文协作（不依赖 Git 上传接力）
+- 自动读取当前活跃 TASK 并一键发起共识
+- Web 页面实时监控运行状态、轮次、角色输出与结论
+
+### 1) 环境准备
+
+```bash
+cd /data/dafoer1/AI_game_company
+python3 -m pip install -r requirements.txt
+```
+
+### 2) 启动服务
+
+```bash
+python3 run_server.py
+```
+
+启动后在浏览器打开：`http://127.0.0.1:8000`
+
+### 3) 页面使用方式
+
+- **当前活跃 TASK（自动识别）**：从 `project-drive/00-active-context.md` 自动提取活跃任务
+- **一键发起活跃 TASK 共识**：自动生成目标并启动后台 run
+- **发起自定义目标共识**：手动输入目标并启动 run
+- **运行列表 / 详情**：查看 `queued/running/completed/failed`、轮次进展、最近角色输出与 summary
+
+### 4) 输出文件位置
+
+每次运行都会写入：
+
+- `project-drive/runtime/runs/<run_id>/state.json`
+- `project-drive/runtime/runs/<run_id>/round-*/<role>.md`
+- `project-drive/runtime/runs/<run_id>/consensus.md`
+
+### 5) 模型配置
+
+当前默认模型配置：
+
+- `CUSTOM_LLM_BASE_URL=https://capi.quan2go.com/v1`
+- `CUSTOM_LLM_MODEL=gpt-5.4`
+- `CUSTOM_LLM_API_KEY=<你的key>`
+
+也可通过环境变量覆盖：
+
+```bash
+export CUSTOM_LLM_BASE_URL="https://capi.quan2go.com/v1"
+export CUSTOM_LLM_MODEL="gpt-5.4"
+export CUSTOM_LLM_API_KEY="<你的key>"
+python3 run_server.py
+```
+
+### 6) API（可选）
+
+- `GET /api/health`
+- `GET /api/active-task`
+- `POST /api/runs`
+- `POST /api/runs/active-task`
+- `GET /api/runs`
+- `GET /api/runs/{run_id}`
+
 ## 当前下一步建议
 
 - 细化游戏核心循环与首版资源流

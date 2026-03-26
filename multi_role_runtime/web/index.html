@@ -11,18 +11,30 @@
     textarea { width: 100%; min-height: 80px; background: #0f1530; color: #fff; border: 1px solid #2a355f; border-radius: 8px; padding: 10px; }
     button { background: #4f7cff; color: #fff; border: none; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
     button:hover { opacity: .9; }
+    .sub-btn { background: #2d9f6f; margin-left: 8px; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; margin-left: 8px; }
     .running { background: #4f7cff33; color: #9ec1ff; }
     .completed { background: #2cb67d33; color: #89e6bd; }
     .failed { background: #ef456533; color: #ffb3be; }
     .queued { background: #eebc4f33; color: #ffe4a3; }
     pre { white-space: pre-wrap; background: #0f1530; border: 1px solid #2a355f; border-radius: 8px; padding: 10px; }
+    .muted { opacity: .85; font-size: 13px; }
   </style>
 </head>
 <body>
   <h2>单机多角色共识监控（@project-drive）</h2>
+
   <div class="card">
-    <h3>发起新一轮共识</h3>
+    <h3>当前活跃 TASK（自动识别）</h3>
+    <div id="activeTask">加载中...</div>
+    <div style="margin-top: 12px;">
+      <button onclick="startFromActiveTask()">一键发起活跃 TASK 共识</button>
+      <button class="sub-btn" onclick="loadActiveTask()">刷新活跃 TASK</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>发起自定义目标共识</h3>
     <textarea id="goal" placeholder="输入本轮目标，例如：完成 TASK-001 设计冻结，输出 TASK-002 可执行拆分"></textarea>
     <div style="margin-top: 12px;"><button onclick="startRun()">启动后台共识</button></div>
   </div>
@@ -39,6 +51,47 @@
 
   <script>
     let selectedRunId = null;
+    let cachedActiveTask = null;
+
+    function statusBadge(status) {
+      return `<span class="badge ${status}">${status}</span>`;
+    }
+
+    async function loadActiveTask() {
+      const box = document.getElementById('activeTask');
+      box.innerHTML = '加载中...';
+      try {
+        const resp = await fetch('/api/active-task');
+        if (!resp.ok) {
+          box.innerHTML = '<span class="muted">未检测到活跃 TASK，请检查 `project-drive/00-active-context.md`。</span>';
+          cachedActiveTask = null;
+          return;
+        }
+        const t = await resp.json();
+        cachedActiveTask = t;
+        box.innerHTML = `
+          <div><b>${t.task_id}</b> - ${t.task_title}</div>
+          <div class="muted">阶段：${t.stage || '未标注'} ｜ 负责人：${t.owner || '未标注'}</div>
+          <div class="muted">状态：${t.task_status || '未标注'}</div>
+          <div class="muted">文件：${t.task_file || '未标注'}</div>
+          <div style="margin-top:8px;"><b>自动目标：</b>${t.auto_goal}</div>
+        `;
+      } catch (e) {
+        box.innerHTML = '<span class="muted">读取活跃 TASK 失败。</span>';
+      }
+    }
+
+    async function startFromActiveTask() {
+      const resp = await fetch('/api/runs/active-task', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({})
+      });
+      if (!resp.ok) return alert('活跃 TASK 共识启动失败');
+      const data = await resp.json();
+      const run = data.run;
+      selectedRunId = run.run_id;
+      await refresh();
+    }
 
     async function startRun() {
       const goal = document.getElementById('goal').value.trim();
@@ -51,10 +104,6 @@
       const run = await resp.json();
       selectedRunId = run.run_id;
       await refresh();
-    }
-
-    function statusBadge(status) {
-      return `<span class="badge ${status}">${status}</span>`;
     }
 
     async function refreshRuns() {
@@ -97,6 +146,7 @@
     }
 
     async function refresh() {
+      await loadActiveTask();
       await refreshRuns();
       await refreshDetail();
     }
