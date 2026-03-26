@@ -1,59 +1,42 @@
 # 角色 Skills 索引
 
-> 参考 `小红书科技运营专家.md` 的思路，本项目的角色 Skill 采用：
->
-> - YAML frontmatter 明确触发场景
-> - 主文档直接写清“何时使用、怎么做、输出什么”
-> - 尽量做到单个 `SKILL.md` 即可进入工作状态
+> 当前项目的角色 Skill 已从 5 角模型压缩为 3 角模型，目标是减少 handoff、优先做出最小可玩原型。
 
 ## 1. 当前技能清单
 
 | 角色 | Skill 名称 | 路径 | 用途 |
 |---|---|---|---|
-| 制作人 / 主策划 | `ai-game-company-producer` | `.workbuddy/skills/ai-game-company-producer/SKILL.md` | 做方向判断、范围控制、版本规划、决策文档 |
-| Web 技术负责人 | `ai-game-company-web-tech-lead` | `.workbuddy/skills/ai-game-company-web-tech-lead/SKILL.md` | 做 Web 原型架构、前端实现切片、工程拆分 |
-| 视觉 / UI 负责人 | `ai-game-company-visual-ui` | `.workbuddy/skills/ai-game-company-visual-ui/SKILL.md` | 做信息架构、界面风格、组件规则、视觉边界 |
-| 系统 / 数值 / 内容策划 | `ai-game-company-systems-economy` | `.workbuddy/skills/ai-game-company-systems-economy/SKILL.md` | 做资源系统、经济循环、成长节奏、配置框架 |
-| 原型验证 / QA | `ai-game-company-prototype-qa` | `.workbuddy/skills/ai-game-company-prototype-qa/SKILL.md` | 做测试点、验证指标、Bug 分级、试玩复盘 |
+| product-system | `restaurant-product-system` | `.workbuddy/skills/restaurant-product-system/SKILL.md` | 做方向判断、范围控制、系统定义、数值初版与设计冻结 |
+| prototype-build | `restaurant-prototype-build` | `.workbuddy/skills/restaurant-prototype-build/SKILL.md` | 做 Web 原型架构、页面骨架、任务拆分与实现落地 |
+| prototype-qa | `restaurant-prototype-qa` | `.workbuddy/skills/restaurant-prototype-qa/SKILL.md` | 做轻量验证点、P0/P1 风险拦截与原型试玩反馈 |
 
 ## 2. 推荐使用顺序
 
 对于当前阶段，最推荐的顺序是：
 
-1. **制作人 / 主策划 Skill**：明确要做什么、不做什么
-2. **系统 / 数值 / 内容策划 Skill**：确定资源流和成长节奏
-3. **Web 技术负责人 Skill**：拆前端切片与实现路径
-4. **视觉 / UI 负责人 Skill**：统一界面结构和视觉风格
-5. **原型验证 / QA Skill**：定义验证标准和试玩问题
+1. **product-system Skill**：明确做什么、不做什么，并冻结范围
+2. **prototype-build Skill**：拆前端切片与实现路径，直接启动工程骨架
+3. **prototype-qa Skill**：只检查关键风险，不提前扩写过量资料
 
 ## 3. 每个 Skill 的定位原则
 
-### 制作人 / 主策划
-- 解决“方向对不对”
-- 解决“做什么、不做什么”
-- 输出决定性文档，而不是泛泛讨论
+### product-system
+- 解决“方向是否成立”
+- 解决“本轮要做什么、不做什么”
+- 输出可直接开工的设计与范围结论
 
-### Web 技术负责人
-- 解决“怎么落地”
-- 优先做 Web 原型的最短可玩路径
+### prototype-build
+- 解决“怎么在 Web 上最快落地”
+- 优先做餐饮经营原型的最短可玩路径
 - 代码与结构以可演示、可迭代为核心
 
-### 视觉 / UI 负责人
-- 解决“信息怎么看、怎么点、怎么反馈”
-- 不追求一开始高保真，先追求清晰统一
-
-### 系统 / 数值 / 内容策划
-- 解决“为什么想继续玩”
-- 把资源、升级、口碑、算力、团队效率串成正反馈
-
-### 原型验证 / QA
-- 解决“是否真的成立”
-- 围绕理解成本、策略感、连续游玩意愿建立验证标准
+### prototype-qa
+- 解决“首版原型哪里最容易失败”
+- 只围绕理解成本、卡点、P0/P1 风险和继续游玩意愿建立验证标准
+- 在没有代码落点时，不扩写长篇测试文档
 
 ## 4. 当前建议
 
-这些 Skill 都已经按项目级方式放进仓库里，后续可继续迭代：
-
 - 如果角色职责变化，直接改对应 `SKILL.md`
-- 如果某个角色开始依赖模板或脚本，再往该 Skill 目录里增加 `references/`、`scripts/` 或 `assets/`
+- 如果后续恢复更细角色拆分，再从这 3 个 Skill 派生出去
 - 如果主题或平台变化，优先同步更新所有 Skill 中的项目假设
