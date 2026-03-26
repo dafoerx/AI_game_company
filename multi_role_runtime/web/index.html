@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>项目多角色共识监控</title>
+  <style>
+    body { font-family: Inter, Arial, sans-serif; margin: 24px; background: #0b1020; color: #e8edf8; }
+    .card { background: #141b33; border: 1px solid #2a355f; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    input, textarea, button { font-size: 14px; }
+    textarea { width: 100%; min-height: 80px; background: #0f1530; color: #fff; border: 1px solid #2a355f; border-radius: 8px; padding: 10px; }
+    button { background: #4f7cff; color: #fff; border: none; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
+    button:hover { opacity: .9; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; margin-left: 8px; }
+    .running { background: #4f7cff33; color: #9ec1ff; }
+    .completed { background: #2cb67d33; color: #89e6bd; }
+    .failed { background: #ef456533; color: #ffb3be; }
+    .queued { background: #eebc4f33; color: #ffe4a3; }
+    pre { white-space: pre-wrap; background: #0f1530; border: 1px solid #2a355f; border-radius: 8px; padding: 10px; }
+  </style>
+</head>
+<body>
+  <h2>单机多角色共识监控（@project-drive）</h2>
+  <div class="card">
+    <h3>发起新一轮共识</h3>
+    <textarea id="goal" placeholder="输入本轮目标，例如：完成 TASK-001 设计冻结，输出 TASK-002 可执行拆分"></textarea>
+    <div style="margin-top: 12px;"><button onclick="startRun()">启动后台共识</button></div>
+  </div>
+
+  <div class="card">
+    <h3>运行列表</h3>
+    <div id="runs"></div>
+  </div>
+
+  <div class="card">
+    <h3>选中运行详情</h3>
+    <div id="detail">尚未选择</div>
+  </div>
+
+  <script>
+    let selectedRunId = null;
+
+    async function startRun() {
+      const goal = document.getElementById('goal').value.trim();
+      if (!goal) return alert('请先输入目标');
+      const resp = await fetch('/api/runs', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ goal })
+      });
+      if (!resp.ok) return alert('启动失败');
+      const run = await resp.json();
+      selectedRunId = run.run_id;
+      await refresh();
+    }
+
+    function statusBadge(status) {
+      return `<span class="badge ${status}">${status}</span>`;
+    }
+
+    async function refreshRuns() {
+      const resp = await fetch('/api/runs');
+      const runs = await resp.json();
+      const el = document.getElementById('runs');
+      if (!runs.length) {
+        el.innerHTML = '暂无运行';
+        return;
+      }
+      el.innerHTML = runs.map(r => `
+        <div style="padding:8px;border-bottom:1px solid #2a355f;cursor:pointer" onclick="selectRun('${r.run_id}')">
+          <b>${r.run_id}</b> ${statusBadge(r.status)}
+          <div style="font-size:12px;opacity:.85;margin-top:4px">轮次 ${r.current_round}/${r.max_rounds} ｜ ${r.goal}</div>
+        </div>
+      `).join('');
+      if (!selectedRunId) selectedRunId = runs[0].run_id;
+    }
+
+    async function selectRun(id) {
+      selectedRunId = id;
+      await refreshDetail();
+    }
+
+    async function refreshDetail() {
+      if (!selectedRunId) return;
+      const resp = await fetch(`/api/runs/${selectedRunId}`);
+      if (!resp.ok) return;
+      const run = await resp.json();
+      document.getElementById('detail').innerHTML = `
+        <div><b>run_id:</b> ${run.run_id} ${statusBadge(run.status)}</div>
+        <div><b>goal:</b> ${run.goal}</div>
+        <div><b>当前轮次:</b> ${run.current_round}/${run.max_rounds}</div>
+        <div><b>turn 数量:</b> ${run.turns.length}</div>
+        <div style="margin-top:8px"><b>summary:</b></div>
+        <pre>${(run.summary || '尚无总结').replace(/</g, '&lt;')}</pre>
+        <div style="margin-top:8px"><b>最近回合输出（最多5条）:</b></div>
+        <pre>${run.turns.slice(-5).map(t => `[R${t.round_index}] ${t.role} (${t.consensus})\n${t.content}`).join('\n\n-----\n\n').replace(/</g, '&lt;')}</pre>
+      `;
+    }
+
+    async function refresh() {
+      await refreshRuns();
+      await refreshDetail();
+    }
+
+    setInterval(refresh, 3000);
+    refresh();
+  </script>
+</body>
+</html>
