@@ -19,7 +19,7 @@ def load_config():
     ).resolve()
 
     base_url = os.getenv("CUSTOM_LLM_BASE_URL", "https://capi.quan2go.com/v1")
-    model = os.getenv("CUSTOM_LLM_MODEL", "gpt-5.4")
+    model = os.getenv("CUSTOM_LLM_MODEL", "gpt-5.3-codex")
     api_key = os.getenv("CUSTOM_LLM_API_KEY", "740B6527-A51F-4C02-BF65-EE035119D39F")
 
     output_dir = Path(

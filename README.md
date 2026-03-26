@@ -118,14 +118,14 @@ python3 run_server.py
 当前默认模型配置：
 
 - `CUSTOM_LLM_BASE_URL=https://capi.quan2go.com/v1`
-- `CUSTOM_LLM_MODEL=gpt-5.4`
+- `CUSTOM_LLM_MODEL=gpt-5.3-codex`
 - `CUSTOM_LLM_API_KEY=<你的key>`
 
 也可通过环境变量覆盖：
 
 ```bash
 export CUSTOM_LLM_BASE_URL="https://capi.quan2go.com/v1"
-export CUSTOM_LLM_MODEL="gpt-5.4"
+export CUSTOM_LLM_MODEL="gpt-5.3-codex"
 export CUSTOM_LLM_API_KEY="<你的key>"
 python3 run_server.py
 ```
