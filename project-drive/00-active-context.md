@@ -1,7 +1,7 @@
 # 00-active-context
 
-**最后更新**：2026-03-26  
-**当前阶段**：TASK-001 跨角色评审中，尚未进入实际工程实现  
+**最后更新**：2026-03-26 15:15 GMT+8  
+**当前阶段**：TASK-001 跨角色评审中，prototype-qa已完成评审  
 **当前主线**：把核心循环与资源流设计收敛为可直接拆开发任务的版本
 
 ---
@@ -20,6 +20,11 @@
 - `.workbuddy/skills/` 下 5 个项目级角色 Skill
 - `TASK-001`：核心循环、资源流、首页信息架构、落地字段清单
 - `04-meeting-notes/2026-03-26_TASK-001_系统设计评审请求.md`
+- `03-handoffs/2026-03-26_TASK-001_prototype-qa_to_producer.md`（prototype-qa评审完成）
+- `03-handoffs/2026-03-26_QA_测试计划草案.md`（测试计划草案）
+- `03-handoffs/2026-03-26_TASK-001_风险分析报告.md`（风险分析报告）
+- `03-handoffs/2026-03-26_测试工具需求文档.md`（测试工具需求）
+- `02-task-cards/pending/TASK-002_核心框架搭建验证需求.md`（TASK-002预备需求）
 
 ## 2. 当前活跃任务
 
@@ -28,28 +33,30 @@
 - 当前状态：设计内容已完成，等待跨角色评审与收口
 - 当前负责人：`ai-game-company-systems-economy`
 - 当前缺口：
-  - 技术可行性确认
-  - 界面表达可落地性确认
-  - QA 验证指标补齐
-  - 制作人范围裁决
+  - 技术可行性确认（web-tech-lead待完成）
+  - 界面表达可落地性确认（visual-ui待完成）
+  - 制作人范围裁决（producer待完成）
   - 归档与下一批开发任务拆分
 
 ## 3. 当前建议接力顺序
 
-### 当前应优先执行
-1. `web-tech-lead`
+### 已完成的角色
+- ✅ `prototype-qa`：已完成验证指标评审，输出handoff文档
+
+### 当前应优先执行（可并行）
+1. `web-tech-lead`（待完成）
    - 评审状态管理、时间推进、数据结构与本地存储方案
-2. `visual-ui`
+2. `visual-ui`（待完成）
    - 评审主界面信息密度、交互方式、关键组件优先级
-3. `prototype-qa`
-   - 补齐 5 分钟理解、15 分钟策略感、30 分钟继续游玩意愿的验证指标
-4. `producer`
+
+### 下一关键角色
+3. `producer`（等待web-tech-lead和visual-ui完成后启动，或可提前介入）
    - 对 MVP 范围、复杂度、阶段优先级做最终裁决
 
 ### 评审完成后
-5. `systems-economy`
+4. `systems-economy`
    - 汇总反馈，修订 TASK-001
-6. `web-tech-lead`
+5. `web-tech-lead`
    - 把 TASK-001 拆成可直接开发的任务切片
 
 ## 4. 当前统一约束
