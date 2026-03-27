@@ -3,156 +3,543 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>项目多角色共识监控</title>
+  <title>AI 项目工坊 — 多角色共识系统</title>
   <style>
-    body { font-family: Inter, Arial, sans-serif; margin: 24px; background: #0b1020; color: #e8edf8; }
-    .card { background: #141b33; border: 1px solid #2a355f; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    input, textarea, button { font-size: 14px; }
-    textarea { width: 100%; min-height: 80px; background: #0f1530; color: #fff; border: 1px solid #2a355f; border-radius: 8px; padding: 10px; }
-    button { background: #4f7cff; color: #fff; border: none; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
-    button:hover { opacity: .9; }
-    .sub-btn { background: #2d9f6f; margin-left: 8px; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; margin-left: 8px; }
-    .running { background: #4f7cff33; color: #9ec1ff; }
-    .completed { background: #2cb67d33; color: #89e6bd; }
-    .failed { background: #ef456533; color: #ffb3be; }
-    .queued { background: #eebc4f33; color: #ffe4a3; }
-    pre { white-space: pre-wrap; background: #0f1530; border: 1px solid #2a355f; border-radius: 8px; padding: 10px; }
-    .muted { opacity: .85; font-size: 13px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0a0e1a 0%, #0f1629 50%, #0a1628 100%);
+      color: #e0e6f0;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .header h1 {
+      font-size: 28px;
+      background: linear-gradient(135deg, #6c8bff, #4ecdc4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .header p { font-size: 13px; opacity: .6; }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .full-width { grid-column: 1 / -1; }
+
+    .card {
+      background: rgba(20, 27, 51, 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(100, 120, 200, 0.15);
+      border-radius: 16px;
+      padding: 20px;
+      transition: border-color .2s;
+    }
+    .card:hover { border-color: rgba(100, 120, 200, 0.3); }
+    .card h3 {
+      font-size: 15px;
+      color: #8ba3e8;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h3 .icon { font-size: 18px; }
+
+    .highlight-card {
+      background: linear-gradient(135deg, rgba(76, 110, 255, 0.1), rgba(78, 205, 196, 0.05));
+      border-color: rgba(76, 110, 255, 0.3);
+    }
+
+    /* Input & Button */
+    textarea, input[type="text"] {
+      width: 100%;
+      min-height: 60px;
+      background: rgba(15, 21, 48, 0.8);
+      color: #fff;
+      border: 1px solid rgba(100, 120, 200, 0.2);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+      resize: vertical;
+      transition: border-color .2s;
+    }
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: rgba(76, 110, 255, 0.6);
+    }
+    textarea::placeholder { color: rgba(200, 210, 240, 0.35); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4c6eff, #5b8cff);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(76, 110, 255, 0.3);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(76, 110, 255, 0.4); }
+    .btn-success {
+      background: linear-gradient(135deg, #2d9f6f, #36b37e);
+      color: #fff;
+    }
+    .btn-success:hover { transform: translateY(-1px); }
+    .btn-secondary {
+      background: rgba(100, 120, 200, 0.15);
+      color: #8ba3e8;
+      border: 1px solid rgba(100, 120, 200, 0.2);
+    }
+    .btn-secondary:hover { background: rgba(100, 120, 200, 0.25); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+
+    .btn-group { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .3px;
+    }
+    .planning { background: rgba(238, 188, 79, 0.15); color: #ffe4a3; }
+    .planned { background: rgba(76, 110, 255, 0.15); color: #9ec1ff; }
+    .executing { background: rgba(76, 110, 255, 0.2); color: #9ec1ff; }
+    .running { background: rgba(76, 110, 255, 0.15); color: #9ec1ff; }
+    .completed { background: rgba(44, 182, 125, 0.15); color: #89e6bd; }
+    .failed { background: rgba(239, 69, 101, 0.15); color: #ffb3be; }
+    .queued { background: rgba(238, 188, 79, 0.15); color: #ffe4a3; }
+
+    /* Lists */
+    .list-item {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(100, 120, 200, 0.08);
+      cursor: pointer;
+      transition: background .15s;
+      border-radius: 8px;
+      margin-bottom: 2px;
+    }
+    .list-item:hover { background: rgba(76, 110, 255, 0.06); }
+    .list-item.active { background: rgba(76, 110, 255, 0.1); border-left: 3px solid #4c6eff; }
+    .list-item-title { font-weight: 600; font-size: 13px; }
+    .list-item-sub { font-size: 12px; opacity: .65; margin-top: 4px; }
+
+    /* Log */
+    .log-container {
+      max-height: 400px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+    .log-entry {
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(100, 120, 200, 0.05);
+      display: flex;
+      gap: 10px;
+    }
+    .log-time { opacity: .4; font-size: 11px; min-width: 80px; font-family: monospace; }
+    .log-msg { flex: 1; }
+
+    /* Pre */
+    pre {
+      white-space: pre-wrap;
+      word-break: break-all;
+      background: rgba(15, 21, 48, 0.6);
+      border: 1px solid rgba(100, 120, 200, 0.1);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .muted { opacity: .6; font-size: 13px; }
+    .empty-state { text-align: center; padding: 32px; opacity: .4; font-size: 14px; }
+
+    /* Task table */
+    .task-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .task-table th { text-align: left; padding: 8px 10px; color: #8ba3e8; font-weight: 600; border-bottom: 1px solid rgba(100,120,200,0.15); font-size: 12px; }
+    .task-table td { padding: 8px 10px; border-bottom: 1px solid rgba(100,120,200,0.06); }
+    .task-table tr:hover td { background: rgba(76,110,255,0.04); }
+
+    /* Phase indicator */
+    .phase-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+    .phase-step {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(100, 120, 200, 0.1);
+    }
+    .phase-step.done { background: #2d9f6f; }
+    .phase-step.active { background: #4c6eff; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+    .tab {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      background: transparent;
+      color: #8ba3e8;
+      border: 1px solid transparent;
+      transition: all .15s;
+    }
+    .tab.active { background: rgba(76,110,255,0.15); border-color: rgba(76,110,255,0.3); color: #fff; }
+    .tab:hover:not(.active) { background: rgba(76,110,255,0.06); }
+
+    .hidden { display: none; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(100,120,200,0.2); border-radius: 3px; }
   </style>
 </head>
 <body>
-  <h2>单机多角色共识监控（@project-drive）</h2>
 
-  <div class="card">
-    <h3>当前活跃 TASK（自动识别）</h3>
-    <div id="activeTask">加载中...</div>
-    <div style="margin-top: 12px;">
-      <button onclick="startFromActiveTask()">一键发起活跃 TASK 共识</button>
-      <button class="sub-btn" onclick="loadActiveTask()">刷新活跃 TASK</button>
+<div class="header">
+  <h1>🎮 AI 项目工坊</h1>
+  <p>Producer 主导 · 多角色共识 · 自动规划与推进</p>
+</div>
+
+<div class="container">
+
+  <!-- ======= 启动新项目 ======= -->
+  <div class="card highlight-card full-width">
+    <h3><span class="icon">🚀</span> 启动新项目</h3>
+    <p class="muted" style="margin-bottom:10px">输入一句话描述你的项目方向，Producer 将自动生成完整规划并启动多角色共识推进。</p>
+    <textarea id="direction" rows="2" placeholder="例如：火锅店运营的项目，web端显示，界面较为美观，水墨画风"></textarea>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="startProject()" id="startBtn">🎬 Producer 启动规划</button>
     </div>
   </div>
 
+  <!-- ======= 项目列表 ======= -->
   <div class="card">
-    <h3>发起自定义目标共识</h3>
-    <textarea id="goal" placeholder="输入本轮目标，例如：完成 TASK-001 设计冻结，输出 TASK-002 可执行拆分"></textarea>
-    <div style="margin-top: 12px;"><button onclick="startRun()">启动后台共识</button></div>
+    <h3><span class="icon">📋</span> 项目列表</h3>
+    <div id="projectList"><div class="empty-state">暂无项目</div></div>
   </div>
 
+  <!-- ======= 项目详情 ======= -->
   <div class="card">
-    <h3>运行列表</h3>
-    <div id="runs"></div>
+    <h3><span class="icon">📊</span> 项目详情</h3>
+    <div id="projectDetail"><div class="empty-state">选择左侧项目查看详情</div></div>
   </div>
 
-  <div class="card">
-    <h3>选中运行详情</h3>
-    <div id="detail">尚未选择</div>
+  <!-- ======= 项目日志 / 任务总览 ======= -->
+  <div class="card full-width">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('logs')">📝 实时日志</div>
+      <div class="tab" onclick="switchTab('tasks')">📑 任务总览</div>
+      <div class="tab" onclick="switchTab('consensus')">🤝 共识记录</div>
+    </div>
+    <div id="tab-logs"><div class="empty-state">选择项目后显示日志</div></div>
+    <div id="tab-tasks" class="hidden"><div class="empty-state">选择项目后显示任务</div></div>
+    <div id="tab-consensus" class="hidden"><div class="empty-state">选择项目后显示共识记录</div></div>
   </div>
 
-  <script>
-    let selectedRunId = null;
-    let cachedActiveTask = null;
+  <!-- ======= 活跃 TASK（兼容原有功能） ======= -->
+  <div class="card">
+    <h3><span class="icon">🎯</span> 当前活跃 TASK（自动识别）</h3>
+    <div id="activeTask" class="muted">加载中...</div>
+    <div class="btn-group">
+      <button class="btn btn-success" onclick="startFromActiveTask()">一键发起共识</button>
+      <button class="btn btn-secondary" onclick="loadActiveTask()">刷新</button>
+    </div>
+  </div>
 
-    function statusBadge(status) {
-      return `<span class="badge ${status}">${status}</span>`;
+  <!-- ======= 自定义共识 ======= -->
+  <div class="card">
+    <h3><span class="icon">💬</span> 自定义目标共识</h3>
+    <textarea id="goal" rows="2" placeholder="输入目标，例如：完成 TASK-001 设计冻结..."></textarea>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="startRun()">启动共识</button>
+    </div>
+  </div>
+
+  <!-- ======= 共识运行列表 ======= -->
+  <div class="card">
+    <h3><span class="icon">⚙️</span> 共识运行列表</h3>
+    <div id="runs"><div class="empty-state">暂无运行</div></div>
+  </div>
+
+  <!-- ======= 运行详情 ======= -->
+  <div class="card">
+    <h3><span class="icon">🔍</span> 运行详情</h3>
+    <div id="detail"><div class="empty-state">选择运行查看详情</div></div>
+  </div>
+
+</div>
+
+<script>
+let selectedProjectId = null;
+let selectedRunId = null;
+let currentTab = 'logs';
+
+// ═══════════ Utility ═══════════
+function badge(status) {
+  return `<span class="badge ${status}">${status}</span>`;
+}
+function statusCN(s) {
+  const map = { planning: '🎬 规划中', planned: '📋 已规划', executing: '🔄 执行中', completed: '✅ 已完成', failed: '❌ 失败', queued: '⏳ 排队中', running: '🔄 运行中' };
+  return map[s] || s;
+}
+function esc(s) { return (s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function shortTime(iso) { if (!iso) return ''; return iso.replace('T', ' ').replace('Z', '').slice(11, 19); }
+
+// ═══════════ Tab ═══════════
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  ['logs', 'tasks', 'consensus'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+  });
+}
+
+// ═══════════ Project ═══════════
+async function startProject() {
+  const dir = document.getElementById('direction').value.trim();
+  if (!dir) return alert('请先输入项目方向描述');
+  const btn = document.getElementById('startBtn');
+  btn.disabled = true;
+  btn.textContent = '🔄 Producer 正在规划...';
+  try {
+    const resp = await fetch('/api/projects', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ direction: dir })
+    });
+    if (!resp.ok) { const e = await resp.json(); alert(e.error || '启动失败'); return; }
+    const proj = await resp.json();
+    selectedProjectId = proj.project_id;
+    document.getElementById('direction').value = '';
+    await refreshAll();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🎬 Producer 启动规划';
+  }
+}
+
+async function refreshProjects() {
+  try {
+    const resp = await fetch('/api/projects');
+    const projects = await resp.json();
+    const el = document.getElementById('projectList');
+    if (!projects.length) { el.innerHTML = '<div class="empty-state">暂无项目</div>'; return; }
+    el.innerHTML = projects.map(p => `
+      <div class="list-item ${p.project_id === selectedProjectId ? 'active' : ''}" onclick="selectProject('${p.project_id}')">
+        <div class="list-item-title">${esc(p.plan ? p.plan.project_name : p.direction)} ${badge(p.status)}</div>
+        <div class="list-item-sub">${esc(p.direction.substring(0, 60))} · ${p.completed_tasks ? p.completed_tasks.length : 0} 任务完成</div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function selectProject(id) {
+  selectedProjectId = id;
+  await refreshProjectDetail();
+  await refreshProjects();
+}
+
+async function refreshProjectDetail() {
+  if (!selectedProjectId) return;
+  try {
+    const resp = await fetch(`/api/projects/${selectedProjectId}`);
+    if (!resp.ok) return;
+    const p = await resp.json();
+    const plan = p.plan || {};
+
+    // 项目详情
+    const detailEl = document.getElementById('projectDetail');
+    const phaseMap = { planning: 1, planned: 2, executing: 3, completed: 4 };
+    const phaseIdx = phaseMap[p.status] || 0;
+
+    detailEl.innerHTML = `
+      <div class="phase-bar">
+        <div class="phase-step ${phaseIdx >= 1 ? (phaseIdx === 1 ? 'active' : 'done') : ''}"></div>
+        <div class="phase-step ${phaseIdx >= 2 ? (phaseIdx === 2 ? 'active' : 'done') : ''}"></div>
+        <div class="phase-step ${phaseIdx >= 3 ? (phaseIdx === 3 ? 'active' : 'done') : ''}"></div>
+        <div class="phase-step ${phaseIdx >= 4 ? 'done' : ''}"></div>
+      </div>
+      <div style="margin-bottom:10px">
+        <strong style="font-size:16px">${esc(plan.project_name || '规划中...')}</strong> ${badge(p.status)}
+      </div>
+      <div class="muted" style="margin-bottom:6px">📌 方向：${esc(p.direction)}</div>
+      ${plan.visual_style ? `<div class="muted" style="margin-bottom:6px">🎨 风格：${esc(plan.visual_style)}</div>` : ''}
+      ${plan.platform ? `<div class="muted" style="margin-bottom:6px">🖥️ 平台：${esc(plan.platform)}</div>` : ''}
+      ${plan.core_loop ? `<div class="muted" style="margin-bottom:6px">🔄 核心循环：${esc(plan.core_loop).substring(0, 120)}...</div>` : ''}
+      ${p.active_task ? `<div style="margin-top:10px;padding:10px;background:rgba(76,110,255,0.08);border-radius:8px">
+        <div style="font-size:12px;color:#8ba3e8">当前活跃任务</div>
+        <div style="font-weight:600">${esc(p.active_task.id)} - ${esc(p.active_task.title)}</div>
+        <div class="muted">${esc(p.active_task.owner || '')}</div>
+      </div>` : ''}
+      ${p.error ? `<div style="margin-top:10px;padding:10px;background:rgba(239,69,101,0.1);border-radius:8px;color:#ffb3be">${esc(p.error)}</div>` : ''}
+    `;
+
+    // 日志
+    const logsEl = document.getElementById('tab-logs');
+    if (p.logs && p.logs.length) {
+      logsEl.innerHTML = '<div class="log-container">' + p.logs.map(l => `
+        <div class="log-entry">
+          <span class="log-time">${shortTime(l.time)}</span>
+          <span class="log-msg">${esc(l.message)}</span>
+        </div>
+      `).join('') + '</div>';
+    } else {
+      logsEl.innerHTML = '<div class="empty-state">暂无日志</div>';
     }
 
-    async function loadActiveTask() {
-      const box = document.getElementById('activeTask');
-      box.innerHTML = '加载中...';
-      try {
-        const resp = await fetch('/api/active-task');
-        if (!resp.ok) {
-          box.innerHTML = '<span class="muted">未检测到活跃 TASK，请检查 `project-drive/00-active-context.md`。</span>';
-          cachedActiveTask = null;
-          return;
-        }
-        const t = await resp.json();
-        cachedActiveTask = t;
-        box.innerHTML = `
-          <div><b>${t.task_id}</b> - ${t.task_title}</div>
-          <div class="muted">阶段：${t.stage || '未标注'} ｜ 负责人：${t.owner || '未标注'}</div>
-          <div class="muted">状态：${t.task_status || '未标注'}</div>
-          <div class="muted">文件：${t.task_file || '未标注'}</div>
-          <div style="margin-top:8px;"><b>自动目标：</b>${t.auto_goal}</div>
-        `;
-      } catch (e) {
-        box.innerHTML = '<span class="muted">读取活跃 TASK 失败。</span>';
-      }
+    // 任务表
+    const tasksEl = document.getElementById('tab-tasks');
+    const tasks = plan.tasks || [];
+    const completedIds = (p.completed_tasks || []).map(t => t.id);
+    const activeId = p.active_task ? p.active_task.id : null;
+    if (tasks.length) {
+      tasksEl.innerHTML = `<table class="task-table">
+        <tr><th>ID</th><th>标题</th><th>优先级</th><th>主责</th><th>状态</th></tr>
+        ${tasks.map(t => {
+          let st = '待启动';
+          if (completedIds.includes(t.id)) st = '✅ 已完成';
+          else if (t.id === activeId) st = '🔄 进行中';
+          return `<tr>
+            <td>${esc(t.id)}</td>
+            <td>${esc(t.title)}</td>
+            <td>${esc(t.priority)}</td>
+            <td>${esc(t.owner)}</td>
+            <td>${st}</td>
+          </tr>`;
+        }).join('')}
+      </table>`;
+    } else {
+      tasksEl.innerHTML = '<div class="empty-state">规划中，任务待生成...</div>';
     }
 
-    async function startFromActiveTask() {
-      const resp = await fetch('/api/runs/active-task', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({})
-      });
-      if (!resp.ok) return alert('活跃 TASK 共识启动失败');
-      const data = await resp.json();
-      const run = data.run;
-      selectedRunId = run.run_id;
-      await refresh();
-    }
-
-    async function startRun() {
-      const goal = document.getElementById('goal').value.trim();
-      if (!goal) return alert('请先输入目标');
-      const resp = await fetch('/api/runs', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ goal })
-      });
-      if (!resp.ok) return alert('启动失败');
-      const run = await resp.json();
-      selectedRunId = run.run_id;
-      await refresh();
-    }
-
-    async function refreshRuns() {
-      const resp = await fetch('/api/runs');
-      const runs = await resp.json();
-      const el = document.getElementById('runs');
-      if (!runs.length) {
-        el.innerHTML = '暂无运行';
-        return;
-      }
-      el.innerHTML = runs.map(r => `
-        <div style="padding:8px;border-bottom:1px solid #2a355f;cursor:pointer" onclick="selectRun('${r.run_id}')">
-          <b>${r.run_id}</b> ${statusBadge(r.status)}
-          <div style="font-size:12px;opacity:.85;margin-top:4px">轮次 ${r.current_round}/${r.max_rounds} ｜ ${r.goal}</div>
+    // 共识记录
+    const consensusEl = document.getElementById('tab-consensus');
+    const runs = p.consensus_runs || [];
+    if (runs.length) {
+      consensusEl.innerHTML = runs.map(rid => `
+        <div class="list-item" onclick="selectRun('${rid}')">
+          <div class="list-item-title">${rid}</div>
         </div>
       `).join('');
-      if (!selectedRunId) selectedRunId = runs[0].run_id;
+    } else {
+      consensusEl.innerHTML = '<div class="empty-state">暂无共识记录</div>';
     }
+  } catch(e) {}
+}
 
-    async function selectRun(id) {
-      selectedRunId = id;
-      await refreshDetail();
-    }
+// ═══════════ Active Task & Runs (原有) ═══════════
+async function loadActiveTask() {
+  const box = document.getElementById('activeTask');
+  box.innerHTML = '加载中...';
+  try {
+    const resp = await fetch('/api/active-task');
+    if (!resp.ok) { box.innerHTML = '<span class="muted">未检测到活跃 TASK</span>'; return; }
+    const t = await resp.json();
+    box.innerHTML = `
+      <div><b>${t.task_id}</b> - ${t.task_title}</div>
+      <div class="muted">阶段：${t.stage || '未标注'} ｜ 负责人：${t.owner || '未标注'}</div>
+      <div class="muted">状态：${t.task_status || '未标注'}</div>
+    `;
+  } catch(e) { box.innerHTML = '<span class="muted">读取失败</span>'; }
+}
 
-    async function refreshDetail() {
-      if (!selectedRunId) return;
-      const resp = await fetch(`/api/runs/${selectedRunId}`);
-      if (!resp.ok) return;
-      const run = await resp.json();
-      document.getElementById('detail').innerHTML = `
-        <div><b>run_id:</b> ${run.run_id} ${statusBadge(run.status)}</div>
-        <div><b>goal:</b> ${run.goal}</div>
-        <div><b>当前轮次:</b> ${run.current_round}/${run.max_rounds}</div>
-        <div><b>turn 数量:</b> ${run.turns.length}</div>
-        <div style="margin-top:8px"><b>summary:</b></div>
-        <pre>${(run.summary || '尚无总结').replace(/</g, '&lt;')}</pre>
-        <div style="margin-top:8px"><b>最近回合输出（最多5条）:</b></div>
-        <pre>${run.turns.slice(-5).map(t => `[R${t.round_index}] ${t.role} (${t.consensus})\n${t.content}`).join('\n\n-----\n\n').replace(/</g, '&lt;')}</pre>
-      `;
-    }
+async function startFromActiveTask() {
+  const resp = await fetch('/api/runs/active-task', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({})
+  });
+  if (!resp.ok) return alert('启动失败');
+  const data = await resp.json();
+  selectedRunId = data.run.run_id;
+  await refreshAll();
+}
 
-    async function refresh() {
-      await loadActiveTask();
-      await refreshRuns();
-      await refreshDetail();
-    }
+async function startRun() {
+  const goal = document.getElementById('goal').value.trim();
+  if (!goal) return alert('请先输入目标');
+  const resp = await fetch('/api/runs', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ goal })
+  });
+  if (!resp.ok) return alert('启动失败');
+  const run = await resp.json();
+  selectedRunId = run.run_id;
+  await refreshAll();
+}
 
-    setInterval(refresh, 3000);
-    refresh();
-  </script>
+async function refreshRuns() {
+  try {
+    const resp = await fetch('/api/runs');
+    const runs = await resp.json();
+    const el = document.getElementById('runs');
+    if (!runs.length) { el.innerHTML = '<div class="empty-state">暂无运行</div>'; return; }
+    el.innerHTML = runs.map(r => `
+      <div class="list-item ${r.run_id === selectedRunId ? 'active' : ''}" onclick="selectRun('${r.run_id}')">
+        <div class="list-item-title">${r.run_id} ${badge(r.status)}</div>
+        <div class="list-item-sub">轮次 ${r.current_round}/${r.max_rounds}</div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function selectRun(id) {
+  selectedRunId = id;
+  await refreshDetail();
+  await refreshRuns();
+}
+
+async function refreshDetail() {
+  if (!selectedRunId) return;
+  try {
+    const resp = await fetch(`/api/runs/${selectedRunId}`);
+    if (!resp.ok) return;
+    const run = await resp.json();
+    document.getElementById('detail').innerHTML = `
+      <div><b>run_id:</b> ${run.run_id} ${badge(run.status)}</div>
+      <div><b>goal:</b> ${esc(run.goal)}</div>
+      <div><b>轮次:</b> ${run.current_round}/${run.max_rounds}</div>
+      <div><b>turns:</b> ${run.turns.length}</div>
+      ${run.summary ? `<div style="margin-top:10px"><b>Summary:</b></div><pre>${esc(run.summary)}</pre>` : ''}
+      ${run.turns.length ? `<div style="margin-top:10px"><b>最近输出:</b></div><pre>${esc(run.turns.slice(-3).map(t => '[R' + t.round_index + '] ' + t.role + ' (' + t.consensus + ')\n' + t.content).join('\n\n---\n\n'))}</pre>` : ''}
+    `;
+  } catch(e) {}
+}
+
+async function refreshAll() {
+  await Promise.all([
+    refreshProjects(),
+    refreshProjectDetail(),
+    loadActiveTask(),
+    refreshRuns(),
+    refreshDetail(),
+  ]);
+}
+
+setInterval(refreshAll, 3000);
+refreshAll();
+</script>
 </body>
 </html>

@@ -75,45 +75,74 @@
 5. 通过 `ROLE_SKILLS_INDEX.md` 找到对应岗位 Skill 并直接使用。
 6. 每次关键决策、范围调整、试玩反馈都追加到 `99-过程记录/`。
 
-## 运行与协作（多角色共识系统）
+## 运行与协作（Producer 主导 + 多角色共识系统）
 
-仓库内已提供可单机运行的多角色后台共识系统，支持：
+仓库内已提供可单机运行的 **Producer 主导项目引擎 + 多角色共识系统**，支持：
 
-- 多角色共享 `project-drive` 目录上下文协作（不依赖 Git 上传接力）
-- 自动读取当前活跃 TASK 并一键发起共识
-- Web 页面实时监控运行状态、轮次、角色输出与结论
+- 🚀 **一句话启动项目**：输入方向描述，Producer 自动完成完整项目规划
+- 📋 **Producer 自动拆解任务**：生成结构化任务卡片，按优先级排序
+- 🤝 **多角色共识推进**：逐任务发起多角色讨论，Producer 收口决策
+- 📊 **实时可视化**：Web 页面实时查看项目进展、任务状态、共识记录
 
 ### 1) 环境准备
 
 ```bash
-cd /data/dafoer1/AI_game_company
-python3 -m pip install -r requirements.txt
+cd AI_game_company
+pip install -r requirements.txt
 ```
 
 ### 2) 启动服务
 
 ```bash
-python3 run_server.py
+python run_server.py
 ```
 
 启动后在浏览器打开：`http://127.0.0.1:8000`
 
-### 3) 页面使用方式
+### 3) 启动新项目（核心用法）
 
-- **当前活跃 TASK（自动识别）**：从 `project-drive/00-active-context.md` 自动提取活跃任务
-- **一键发起活跃 TASK 共识**：自动生成目标并启动后台 run
-- **发起自定义目标共识**：手动输入目标并启动 run
-- **运行列表 / 详情**：查看 `queued/running/completed/failed`、轮次进展、最近角色输出与 summary
+1. 打开 Web 页面，在顶部 **"🚀 启动新项目"** 区域输入一句话方向描述
+2. 示例输入：
+   - `火锅店运营，Web端，水墨画风`
+   - `太空殖民模拟，移动端，赛博朋克风格`
+   - `咖啡馆经营，Web端，像素复古风`
+3. 点击 **"🚀 启动项目"** 按钮
+4. **Producer 自动执行**：
+   - 调用 LLM 生成完整项目规划（项目名称、主题、MVP 范围、里程碑、任务拆分）
+   - 将规划写入 `project-drive`（active-context、task-cards）
+   - 按任务优先级逐个发起多角色共识
+   - 在每个阶段做收口决策并推进到下一任务
 
-### 4) 输出文件位置
+### 4) 页面功能
 
-每次运行都会写入：
+| 区域 | 说明 |
+|------|------|
+| **启动新项目** | 输入一句话方向，一键启动 |
+| **项目列表** | 查看所有项目及状态（规划中 / 进行中 / 已完成） |
+| **项目详情** | 点击项目查看：进度条、任务列表、当前阶段 |
+| **📝 实时日志** | 项目推进过程的实时 log |
+| **📑 任务总览** | 所有任务卡片及状态（pending / in_progress / done） |
+| **🤝 共识记录** | 每个任务的多角色共识详情 |
+| **当前活跃 TASK** | 从 active-context 自动识别（兼容旧流程） |
+| **自定义共识** | 手动输入目标发起共识（兼容旧流程） |
 
-- `project-drive/runtime/runs/<run_id>/state.json`
-- `project-drive/runtime/runs/<run_id>/round-*/<role>.md`
-- `project-drive/runtime/runs/<run_id>/consensus.md`
+### 5) 输出文件位置
 
-### 5) 模型配置
+项目规划和运行过程写入：
+
+```text
+project-drive/
+├─ 00-active-context.md          # 当前活跃项目上下文
+├─ 02-task-cards/
+│  ├─ pending/                   # 待处理任务
+│  └─ in-progress/               # 进行中任务
+└─ runtime/runs/<run_id>/
+   ├─ state.json                 # 运行状态
+   ├─ round-*/<role>.md          # 每轮各角色输出
+   └─ consensus.md               # 共识结论
+```
+
+### 6) 模型配置
 
 当前默认模型配置：
 
@@ -124,24 +153,55 @@ python3 run_server.py
 也可通过环境变量覆盖：
 
 ```bash
+# Linux / macOS
 export CUSTOM_LLM_BASE_URL="https://capi.quan2go.com/v1"
 export CUSTOM_LLM_MODEL="gpt-5.3-codex"
 export CUSTOM_LLM_API_KEY="<你的key>"
-python3 run_server.py
+python run_server.py
+
+# Windows PowerShell
+$env:CUSTOM_LLM_BASE_URL="https://capi.quan2go.com/v1"
+$env:CUSTOM_LLM_MODEL="gpt-5.3-codex"
+$env:CUSTOM_LLM_API_KEY="<你的key>"
+python run_server.py
 ```
 
-### 6) API（可选）
+### 7) API 接口
 
-- `GET /api/health`
-- `GET /api/active-task`
-- `POST /api/runs`
-- `POST /api/runs/active-task`
-- `GET /api/runs`
-- `GET /api/runs/{run_id}`
+#### 项目管理（新）
 
-## 当前下一步建议
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/projects` | 启动新项目，body: `{"direction": "火锅店运营，Web端，水墨画风"}` |
+| `GET` | `/api/projects` | 获取所有项目列表 |
+| `GET` | `/api/projects/<id>` | 获取项目详情（含任务状态、共识记录） |
 
-- 细化游戏核心循环与首版资源流
-- 设计 Web 版首屏信息架构与主界面
-- 拆出第一批可直接交给 OpenCode 的开发任务
-- 建立原型验证指标（是否理解、是否上头、是否愿意继续扩张）
+#### 共识系统（兼容）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/health` | 健康检查 |
+| `GET` | `/api/active-task` | 获取当前活跃任务 |
+| `POST` | `/api/runs` | 发起自定义共识 |
+| `POST` | `/api/runs/active-task` | 一键发起活跃任务共识 |
+| `GET` | `/api/runs` | 获取所有运行记录 |
+| `GET` | `/api/runs/<run_id>` | 获取运行详情 |
+
+### 8) 典型工作流
+
+```
+用户输入: "火锅店运营，Web端，水墨画风"
+       ↓
+  Producer LLM 规划
+       ↓
+  生成项目结构（名称/主题/MVP/里程碑/任务）
+       ↓
+  写入 project-drive
+       ↓
+  ┌─ 任务 1: 核心玩法设计 ──→ 多角色共识 ──→ Producer 收口
+  ├─ 任务 2: UI 原型设计   ──→ 多角色共识 ──→ Producer 收口
+  ├─ 任务 3: 后端架构      ──→ 多角色共识 ──→ Producer 收口
+  └─ ...
+       ↓
+  项目完成 ✅
+```

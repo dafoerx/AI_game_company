@@ -3,9 +3,14 @@ import re
 from flask import Flask, jsonify, request, send_from_directory
 
 from .engine import ConsensusEngine
+from .project_engine import ProjectEngine
 
 app = Flask(__name__, static_folder="web")
 engine = ConsensusEngine()
+project_engine = ProjectEngine(engine.config)
+
+# 让 project_engine 共享同一个 consensus_engine 实例
+project_engine.consensus_engine = engine
 
 
 def _read_text(path):
@@ -47,7 +52,7 @@ def detect_active_task():
         in_progress_dir = pd / "02-task-cards" / "in-progress"
         if in_progress_dir.exists():
             for path in sorted(in_progress_dir.glob("TASK-*.md")):
-                m = re.match(r"^(TASK-\d+[A-Z]?)_(.*)\.md$", path.name)
+                m = re.match(r"^(TASK-\d+[A-Z]?)_(.*)\\.md$", path.name)
                 if m:
                     task_id = m.group(1)
                     task_title = m.group(2)
@@ -104,6 +109,41 @@ def active_task():
         return jsonify({"error": "未检测到活跃 TASK"}), 404
     return jsonify(task)
 
+
+# ═══════════════════════════════════════════════════
+# 项目相关 API（新增）
+# ═══════════════════════════════════════════════════
+
+@app.route("/api/projects", methods=["POST"])
+def create_project():
+    """
+    启动新项目。
+    Body: { "direction": "火锅店运营，web端显示，界面较为美观，水墨画风" }
+    """
+    data = request.get_json(silent=True) or {}
+    direction = (data.get("direction") or "").strip()
+    if len(direction) < 4:
+        return jsonify({"error": "方向描述至少 4 个字符"}), 400
+    state = project_engine.create_project(direction)
+    return jsonify(state)
+
+
+@app.route("/api/projects", methods=["GET"])
+def list_projects():
+    return jsonify(project_engine.list_projects())
+
+
+@app.route("/api/projects/<project_id>", methods=["GET"])
+def get_project(project_id):
+    state = project_engine.get_project(project_id)
+    if not state:
+        return jsonify({"error": "项目不存在"}), 404
+    return jsonify(state)
+
+
+# ═══════════════════════════════════════════════════
+# 原有共识相关 API
+# ═══════════════════════════════════════════════════
 
 @app.route("/api/runs", methods=["POST"])
 def create_run():
