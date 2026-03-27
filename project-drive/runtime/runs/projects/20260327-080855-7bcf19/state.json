@@ -1,0 +1,39 @@
+{
+  "project_id": "20260327-080855-7bcf19",
+  "direction": "太空殖民模拟，赛博朋克风，web端",
+  "status": "completed",
+  "created_at": "2026-03-27T08:08:55.357942Z",
+  "finished_at": "2026-03-27T08:08:58.087188Z",
+  "plan": {
+    "error": {
+      "message": "Encountered invalidated oauth token for user, failing request",
+      "type": null,
+      "code": "token_revoked",
+      "param": null
+    },
+    "status": 401
+  },
+  "active_task": null,
+  "completed_tasks": [],
+  "consensus_runs": [],
+  "current_phase": "all_done",
+  "error": null,
+  "logs": [
+    {
+      "time": "2026-03-27T08:08:55.358978Z",
+      "message": "🎬 Producer 开始规划项目..."
+    },
+    {
+      "time": "2026-03-27T08:08:58.086473Z",
+      "message": "✅ Producer 规划完成：未命名"
+    },
+    {
+      "time": "2026-03-27T08:08:58.086944Z",
+      "message": "📁 项目文件已写入 project-drive"
+    },
+    {
+      "time": "2026-03-27T08:08:58.087193Z",
+      "message": "🎉 项目规划与共识全部完成"
+    }
+  ]
+}

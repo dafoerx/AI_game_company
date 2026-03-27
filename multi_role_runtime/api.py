@@ -4,10 +4,12 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from .engine import ConsensusEngine
 from .project_engine import ProjectEngine
+from .code_generator import CodeGenerator
 
 app = Flask(__name__, static_folder="web")
 engine = ConsensusEngine()
 project_engine = ProjectEngine(engine.config)
+code_generator = CodeGenerator(engine.config)
 
 # 让 project_engine 共享同一个 consensus_engine 实例
 project_engine.consensus_engine = engine
@@ -180,3 +182,115 @@ def get_run(run_id):
     if not state:
         return jsonify({"error": "run not found"}), 404
     return jsonify(state)
+
+
+# ═══════════════════════════════════════════════════
+# 代码生成相关 API（新增）
+# ═══════════════════════════════════════════════════
+
+@app.route("/api/codegen", methods=["POST"])
+def start_code_generation():
+    """
+    启动代码生成流程。
+    Body: { "project_id": "可选，指定项目ID" }
+    """
+    data = request.get_json(silent=True) or {}
+    project_id = data.get("project_id")
+    state = code_generator.start_generation(project_id)
+    return jsonify(state)
+
+
+@app.route("/api/codegen", methods=["GET"])
+def list_code_generations():
+    """列出所有代码生成任务。"""
+    return jsonify(code_generator.list_generations())
+
+
+@app.route("/api/codegen/<gen_id>", methods=["GET"])
+def get_code_generation(gen_id):
+    """获取指定的代码生成任务状态。"""
+    state = code_generator.get_generation(gen_id)
+    if not state:
+        return jsonify({"error": "代码生成任务不存在"}), 404
+    return jsonify(state)
+
+
+@app.route("/api/codegen/<gen_id>/files", methods=["GET"])
+def list_generated_files(gen_id):
+    """列出生成的文件。"""
+    from pathlib import Path
+    state = code_generator.get_generation(gen_id)
+    if not state:
+        return jsonify({"error": "代码生成任务不存在"}), 404
+    
+    gen_dir = Path(state["output_dir"])
+    if not gen_dir.exists():
+        return jsonify({"files": []})
+    
+    files = []
+    for path in sorted(gen_dir.rglob("*")):
+        if path.is_file() and not path.name.startswith("."):
+            rel_path = str(path.relative_to(gen_dir))
+            files.append({
+                "path": rel_path,
+                "size": path.stat().st_size,
+                "ext": path.suffix,
+            })
+    
+    return jsonify({"files": files})
+
+
+@app.route("/api/codegen/<gen_id>/file/<path:file_path>", methods=["GET"])
+def get_generated_file(gen_id, file_path):
+    """获取生成的文件内容。"""
+    from pathlib import Path
+    state = code_generator.get_generation(gen_id)
+    if not state:
+        return jsonify({"error": "代码生成任务不存在"}), 404
+    
+    gen_dir = Path(state["output_dir"])
+    file_full_path = gen_dir / file_path
+    
+    if not file_full_path.exists():
+        return jsonify({"error": "文件不存在"}), 404
+    
+    # 安全检查：确保文件在生成目录内
+    try:
+        file_full_path.relative_to(gen_dir)
+    except ValueError:
+        return jsonify({"error": "无效的文件路径"}), 400
+    
+    content = file_full_path.read_text(encoding="utf-8", errors="ignore")
+    return jsonify({
+        "path": file_path,
+        "content": content,
+    })
+
+
+@app.route("/api/codegen/<gen_id>/preview")
+def preview_generated_game(gen_id):
+    """预览生成的游戏（返回 index.html）。"""
+    from pathlib import Path
+    state = code_generator.get_generation(gen_id)
+    if not state:
+        return "代码生成任务不存在", 404
+    
+    gen_dir = Path(state["output_dir"])
+    index_path = gen_dir / "index.html"
+    
+    if not index_path.exists():
+        return "游戏尚未生成完成", 404
+    
+    return send_from_directory(str(gen_dir), "index.html")
+
+
+@app.route("/api/codegen/<gen_id>/static/<path:file_path>")
+def serve_generated_static(gen_id, file_path):
+    """提供生成的静态文件（CSS/JS等）。"""
+    from pathlib import Path
+    state = code_generator.get_generation(gen_id)
+    if not state:
+        return "代码生成任务不存在", 404
+    
+    gen_dir = Path(state["output_dir"])
+    return send_from_directory(str(gen_dir), file_path)

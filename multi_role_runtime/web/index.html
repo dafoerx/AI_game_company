@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI 项目工坊 — 多角色共识系统</title>
+  <title>AI 游戏工坊 — 设计 + 代码生成</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -27,7 +27,7 @@
     .header p { font-size: 13px; opacity: .6; }
 
     .container {
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -57,6 +57,10 @@
     .highlight-card {
       background: linear-gradient(135deg, rgba(76, 110, 255, 0.1), rgba(78, 205, 196, 0.05));
       border-color: rgba(76, 110, 255, 0.3);
+    }
+    .codegen-card {
+      background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(76, 110, 255, 0.05));
+      border-color: rgba(78, 205, 196, 0.3);
     }
 
     /* Input & Button */
@@ -101,6 +105,12 @@
       color: #fff;
     }
     .btn-success:hover { transform: translateY(-1px); }
+    .btn-codegen {
+      background: linear-gradient(135deg, #4ecdc4, #44a08d);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(78, 205, 196, 0.3);
+    }
+    .btn-codegen:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(78, 205, 196, 0.4); }
     .btn-secondary {
       background: rgba(100, 120, 200, 0.15);
       color: #8ba3e8;
@@ -120,11 +130,14 @@
       font-weight: 600;
       letter-spacing: .3px;
     }
+    .initializing { background: rgba(238, 188, 79, 0.15); color: #ffe4a3; }
+    .generating { background: rgba(78, 205, 196, 0.2); color: #89e6d4; }
     .planning { background: rgba(238, 188, 79, 0.15); color: #ffe4a3; }
     .planned { background: rgba(76, 110, 255, 0.15); color: #9ec1ff; }
     .executing { background: rgba(76, 110, 255, 0.2); color: #9ec1ff; }
     .running { background: rgba(76, 110, 255, 0.15); color: #9ec1ff; }
     .completed { background: rgba(44, 182, 125, 0.15); color: #89e6bd; }
+    .done { background: rgba(44, 182, 125, 0.15); color: #89e6bd; }
     .failed { background: rgba(239, 69, 101, 0.15); color: #ffb3be; }
     .queued { background: rgba(238, 188, 79, 0.15); color: #ffe4a3; }
 
@@ -169,6 +182,9 @@
       max-height: 500px;
       overflow-y: auto;
     }
+    code {
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    }
 
     .muted { opacity: .6; font-size: 13px; }
     .empty-state { text-align: center; padding: 32px; opacity: .4; font-size: 14px; }
@@ -193,10 +209,11 @@
     }
     .phase-step.done { background: #2d9f6f; }
     .phase-step.active { background: #4c6eff; animation: pulse 1.5s infinite; }
+    .phase-step.codegen { background: #4ecdc4; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
 
     /* Tabs */
-    .tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
     .tab {
       padding: 6px 14px;
       border-radius: 8px;
@@ -212,17 +229,84 @@
 
     .hidden { display: none; }
 
+    /* File tree */
+    .file-tree {
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+    }
+    .file-item {
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background .15s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .file-item:hover { background: rgba(78, 205, 196, 0.1); }
+    .file-item.active { background: rgba(78, 205, 196, 0.15); }
+    .file-icon { font-size: 14px; }
+    .file-size { opacity: .5; font-size: 11px; margin-left: auto; }
+
+    /* Code viewer */
+    .code-viewer {
+      background: rgba(10, 14, 26, 0.9);
+      border: 1px solid rgba(100, 120, 200, 0.15);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .code-header {
+      padding: 10px 14px;
+      background: rgba(30, 40, 70, 0.5);
+      border-bottom: 1px solid rgba(100, 120, 200, 0.1);
+      font-size: 12px;
+      color: #8ba3e8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .code-content {
+      padding: 14px;
+      max-height: 500px;
+      overflow: auto;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    /* Progress */
+    .progress-container {
+      background: rgba(100, 120, 200, 0.1);
+      border-radius: 8px;
+      height: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #4ecdc4, #44a08d);
+      transition: width .5s ease;
+    }
+
     /* scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(100,120,200,0.2); border-radius: 3px; }
+
+    /* Animations */
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in { animation: slideIn .3s ease; }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>🎮 AI 项目工坊</h1>
-  <p>Producer 主导 · 多角色共识 · 自动规划与推进</p>
+  <h1>🎮 AI 游戏工坊</h1>
+  <p>设计规划 · 多角色共识 · 代码生成 · 一站式游戏开发</p>
 </div>
 
 <div class="container">
@@ -230,11 +314,22 @@
   <!-- ======= 启动新项目 ======= -->
   <div class="card highlight-card full-width">
     <h3><span class="icon">🚀</span> 启动新项目</h3>
-    <p class="muted" style="margin-bottom:10px">输入一句话描述你的项目方向，Producer 将自动生成完整规划并启动多角色共识推进。</p>
-    <textarea id="direction" rows="2" placeholder="例如：火锅店运营的项目，web端显示，界面较为美观，水墨画风"></textarea>
+    <p class="muted" style="margin-bottom:10px">输入一句话描述你的项目方向，AI团队将自动完成设计规划，并可一键生成可运行的游戏代码。</p>
+    <textarea id="direction" rows="2" placeholder="例如：太空殖民模拟，赛博朋克风，web端，包含资源管理和随机事件"></textarea>
     <div class="btn-group">
-      <button class="btn btn-primary" onclick="startProject()" id="startBtn">🎬 Producer 启动规划</button>
+      <button class="btn btn-primary" onclick="startProject()" id="startBtn">🎬 启动设计规划</button>
     </div>
+  </div>
+
+  <!-- ======= 代码生成控制台 ======= -->
+  <div class="card codegen-card full-width">
+    <h3><span class="icon">⚡</span> 代码生成工坊</h3>
+    <p class="muted" style="margin-bottom:10px">设计规划完成后，点击生成按钮，AI将自动产出完整可运行的游戏代码（HTML/CSS/JS），包含精美动画效果。</p>
+    <div class="btn-group">
+      <button class="btn btn-codegen" onclick="startCodeGen()" id="codegenBtn">💻 生成游戏代码</button>
+      <button class="btn btn-secondary" onclick="refreshCodeGen()">🔄 刷新状态</button>
+    </div>
+    <div id="codegenStatus" style="margin-top:14px"></div>
   </div>
 
   <!-- ======= 项目列表 ======= -->
@@ -249,21 +344,48 @@
     <div id="projectDetail"><div class="empty-state">选择左侧项目查看详情</div></div>
   </div>
 
-  <!-- ======= 项目日志 / 任务总览 ======= -->
+  <!-- ======= 代码生成列表 ======= -->
+  <div class="card">
+    <h3><span class="icon">📦</span> 代码生成记录</h3>
+    <div id="codegenList"><div class="empty-state">暂无代码生成记录</div></div>
+  </div>
+
+  <!-- ======= 代码生成详情 ======= -->
+  <div class="card">
+    <h3><span class="icon">🔍</span> 生成详情</h3>
+    <div id="codegenDetail"><div class="empty-state">选择左侧记录查看详情</div></div>
+  </div>
+
+  <!-- ======= 生成的文件浏览器 ======= -->
+  <div class="card full-width">
+    <h3><span class="icon">📁</span> 生成的代码文件</h3>
+    <div style="display: grid; grid-template-columns: 250px 1fr; gap: 16px;">
+      <div id="fileTree" class="file-tree" style="max-height: 500px; overflow-y: auto;">
+        <div class="empty-state" style="padding: 20px;">选择代码生成记录</div>
+      </div>
+      <div id="codeViewer">
+        <div class="empty-state">选择文件查看代码</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======= 日志 / 任务 / 共识 ======= -->
   <div class="card full-width">
     <div class="tabs">
       <div class="tab active" onclick="switchTab('logs')">📝 实时日志</div>
       <div class="tab" onclick="switchTab('tasks')">📑 任务总览</div>
       <div class="tab" onclick="switchTab('consensus')">🤝 共识记录</div>
+      <div class="tab" onclick="switchTab('codegenLogs')">💻 代码生成日志</div>
     </div>
     <div id="tab-logs"><div class="empty-state">选择项目后显示日志</div></div>
     <div id="tab-tasks" class="hidden"><div class="empty-state">选择项目后显示任务</div></div>
     <div id="tab-consensus" class="hidden"><div class="empty-state">选择项目后显示共识记录</div></div>
+    <div id="tab-codegenLogs" class="hidden"><div class="empty-state">选择代码生成记录后显示日志</div></div>
   </div>
 
-  <!-- ======= 活跃 TASK（兼容原有功能） ======= -->
+  <!-- ======= 活跃 TASK ======= -->
   <div class="card">
-    <h3><span class="icon">🎯</span> 当前活跃 TASK（自动识别）</h3>
+    <h3><span class="icon">🎯</span> 当前活跃 TASK</h3>
     <div id="activeTask" class="muted">加载中...</div>
     <div class="btn-group">
       <button class="btn btn-success" onclick="startFromActiveTask()">一键发起共识</button>
@@ -297,6 +419,8 @@
 <script>
 let selectedProjectId = null;
 let selectedRunId = null;
+let selectedCodegenId = null;
+let selectedFile = null;
 let currentTab = 'logs';
 
 // ═══════════ Utility ═══════════
@@ -304,18 +428,34 @@ function badge(status) {
   return `<span class="badge ${status}">${status}</span>`;
 }
 function statusCN(s) {
-  const map = { planning: '🎬 规划中', planned: '📋 已规划', executing: '🔄 执行中', completed: '✅ 已完成', failed: '❌ 失败', queued: '⏳ 排队中', running: '🔄 运行中' };
+  const map = { 
+    planning: '🎬 规划中', planned: '📋 已规划', executing: '🔄 执行中', 
+    completed: '✅ 已完成', failed: '❌ 失败', queued: '⏳ 排队中', 
+    running: '🔄 运行中', initializing: '🔧 初始化', generating: '💻 生成中',
+    done: '✅ 已完成'
+  };
   return map[s] || s;
 }
 function esc(s) { return (s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function shortTime(iso) { if (!iso) return ''; return iso.replace('T', ' ').replace('Z', '').slice(11, 19); }
+function fileIcon(ext) {
+  const icons = { '.html': '📄', '.css': '🎨', '.js': '⚡', '.md': '📝', '.json': '📋', '.txt': '📃' };
+  return icons[ext] || '📄';
+}
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
 
 // ═══════════ Tab ═══════════
 function switchTab(tab) {
   currentTab = tab;
-  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
-  ['logs', 'tasks', 'consensus'].forEach(t => {
+  document.querySelectorAll('.tabs .tab').forEach((t, i) => {
+    const tabs = ['logs', 'tasks', 'consensus', 'codegenLogs'];
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  ['logs', 'tasks', 'consensus', 'codegenLogs'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
   });
 }
@@ -326,7 +466,7 @@ async function startProject() {
   if (!dir) return alert('请先输入项目方向描述');
   const btn = document.getElementById('startBtn');
   btn.disabled = true;
-  btn.textContent = '🔄 Producer 正在规划...';
+  btn.textContent = '🔄 正在规划...';
   try {
     const resp = await fetch('/api/projects', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -339,7 +479,7 @@ async function startProject() {
     await refreshAll();
   } finally {
     btn.disabled = false;
-    btn.textContent = '🎬 Producer 启动规划';
+    btn.textContent = '🎬 启动设计规划';
   }
 }
 
@@ -352,7 +492,7 @@ async function refreshProjects() {
     el.innerHTML = projects.map(p => `
       <div class="list-item ${p.project_id === selectedProjectId ? 'active' : ''}" onclick="selectProject('${p.project_id}')">
         <div class="list-item-title">${esc(p.plan ? p.plan.project_name : p.direction)} ${badge(p.status)}</div>
-        <div class="list-item-sub">${esc(p.direction.substring(0, 60))} · ${p.completed_tasks ? p.completed_tasks.length : 0} 任务完成</div>
+        <div class="list-item-sub">${esc(p.direction.substring(0, 50))} · ${p.completed_tasks ? p.completed_tasks.length : 0} 任务</div>
       </div>
     `).join('');
   } catch(e) {}
@@ -372,7 +512,6 @@ async function refreshProjectDetail() {
     const p = await resp.json();
     const plan = p.plan || {};
 
-    // 项目详情
     const detailEl = document.getElementById('projectDetail');
     const phaseMap = { planning: 1, planned: 2, executing: 3, completed: 4 };
     const phaseIdx = phaseMap[p.status] || 0;
@@ -387,14 +526,12 @@ async function refreshProjectDetail() {
       <div style="margin-bottom:10px">
         <strong style="font-size:16px">${esc(plan.project_name || '规划中...')}</strong> ${badge(p.status)}
       </div>
-      <div class="muted" style="margin-bottom:6px">📌 方向：${esc(p.direction)}</div>
-      ${plan.visual_style ? `<div class="muted" style="margin-bottom:6px">🎨 风格：${esc(plan.visual_style)}</div>` : ''}
-      ${plan.platform ? `<div class="muted" style="margin-bottom:6px">🖥️ 平台：${esc(plan.platform)}</div>` : ''}
-      ${plan.core_loop ? `<div class="muted" style="margin-bottom:6px">🔄 核心循环：${esc(plan.core_loop).substring(0, 120)}...</div>` : ''}
+      <div class="muted" style="margin-bottom:6px">📌 ${esc(p.direction)}</div>
+      ${plan.visual_style ? `<div class="muted" style="margin-bottom:6px">🎨 ${esc(plan.visual_style)}</div>` : ''}
+      ${plan.platform ? `<div class="muted" style="margin-bottom:6px">🖥️ ${esc(plan.platform)}</div>` : ''}
       ${p.active_task ? `<div style="margin-top:10px;padding:10px;background:rgba(76,110,255,0.08);border-radius:8px">
         <div style="font-size:12px;color:#8ba3e8">当前活跃任务</div>
         <div style="font-weight:600">${esc(p.active_task.id)} - ${esc(p.active_task.title)}</div>
-        <div class="muted">${esc(p.active_task.owner || '')}</div>
       </div>` : ''}
       ${p.error ? `<div style="margin-top:10px;padding:10px;background:rgba(239,69,101,0.1);border-radius:8px;color:#ffb3be">${esc(p.error)}</div>` : ''}
     `;
@@ -452,7 +589,187 @@ async function refreshProjectDetail() {
   } catch(e) {}
 }
 
-// ═══════════ Active Task & Runs (原有) ═══════════
+// ═══════════ Code Generation ═══════════
+async function startCodeGen() {
+  const btn = document.getElementById('codegenBtn');
+  btn.disabled = true;
+  btn.textContent = '🔄 启动中...';
+  try {
+    const resp = await fetch('/api/codegen', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ project_id: selectedProjectId })
+    });
+    if (!resp.ok) { const e = await resp.json(); alert(e.error || '启动失败'); return; }
+    const gen = await resp.json();
+    selectedCodegenId = gen.gen_id;
+    await refreshCodeGen();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💻 生成游戏代码';
+  }
+}
+
+async function refreshCodeGen() {
+  try {
+    const resp = await fetch('/api/codegen');
+    const gens = await resp.json();
+    const el = document.getElementById('codegenList');
+    if (!gens.length) { el.innerHTML = '<div class="empty-state">暂无代码生成记录</div>'; return; }
+    el.innerHTML = gens.map(g => `
+      <div class="list-item ${g.gen_id === selectedCodegenId ? 'active' : ''}" onclick="selectCodegen('${g.gen_id}')">
+        <div class="list-item-title">${g.gen_id.substring(0, 15)}... ${badge(g.status)}</div>
+        <div class="list-item-sub">${g.files_generated ? g.files_generated.length : 0} 个文件 · ${g.current_phase || ''}</div>
+      </div>
+    `).join('');
+
+    // 更新顶部状态
+    const latestGen = gens[0];
+    if (latestGen) {
+      updateCodegenStatus(latestGen);
+    }
+  } catch(e) {}
+}
+
+function updateCodegenStatus(g) {
+  const el = document.getElementById('codegenStatus');
+  if (g.status === 'generating') {
+    const phases = g.phases_completed || [];
+    const progress = Math.min(100, (phases.length / 6) * 100);
+    el.innerHTML = `
+      <div class="animate-in">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span>${statusCN(g.status)}</span>
+          <span class="muted">${g.current_phase}</span>
+        </div>
+        <div class="progress-container">
+          <div class="progress-bar" style="width:${progress}%"></div>
+        </div>
+        <div class="muted" style="font-size:12px">${phases.length} 个阶段已完成 · ${g.files_generated ? g.files_generated.length : 0} 个文件</div>
+      </div>
+    `;
+  } else if (g.status === 'completed' || g.status === 'done') {
+    el.innerHTML = `
+      <div class="animate-in" style="padding:12px;background:rgba(44,182,125,0.1);border-radius:10px">
+        <div style="color:#89e6bd;font-weight:600">✅ 代码生成完成！</div>
+        <div class="muted" style="margin-top:4px">共 ${g.files_generated ? g.files_generated.length : 0} 个文件 · <a href="/api/codegen/${g.gen_id}/preview" target="_blank" style="color:#4ecdc4">🎮 预览游戏</a></div>
+      </div>
+    `;
+  } else if (g.status === 'failed') {
+    el.innerHTML = `
+      <div style="padding:12px;background:rgba(239,69,101,0.1);border-radius:10px">
+        <div style="color:#ffb3be;font-weight:600">❌ 生成失败</div>
+        <div class="muted" style="margin-top:4px">${esc(g.error || '未知错误')}</div>
+      </div>
+    `;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+async function selectCodegen(id) {
+  selectedCodegenId = id;
+  await refreshCodegenDetail();
+  await refreshCodeGen();
+}
+
+async function refreshCodegenDetail() {
+  if (!selectedCodegenId) return;
+  try {
+    const resp = await fetch(`/api/codegen/${selectedCodegenId}`);
+    if (!resp.ok) return;
+    const g = await resp.json();
+
+    const detailEl = document.getElementById('codegenDetail');
+    const phases = g.phases_completed || [];
+    const totalPhases = 6;
+    
+    detailEl.innerHTML = `
+      <div class="phase-bar">
+        ${Array.from({length: totalPhases}, (_, i) => {
+          const done = i < phases.length;
+          const active = i === phases.length && g.status === 'generating';
+          return `<div class="phase-step ${done ? 'done' : ''} ${active ? 'codegen' : ''}"></div>`;
+        }).join('')}
+      </div>
+      <div style="margin-bottom:10px">
+        <strong>生成ID:</strong> ${g.gen_id} ${badge(g.status)}
+      </div>
+      <div class="muted" style="margin-bottom:6px">📂 输出: ${esc(g.output_dir)}</div>
+      <div class="muted" style="margin-bottom:6px">📁 文件数: ${g.files_generated ? g.files_generated.length : 0}</div>
+      <div class="muted" style="margin-bottom:6px">🔧 当前阶段: ${g.current_phase || '-'}</div>
+      ${g.status === 'completed' || g.status === 'done' ? `
+        <div class="btn-group" style="margin-top:10px">
+          <a href="/api/codegen/${g.gen_id}/preview" target="_blank" class="btn btn-codegen">🎮 预览游戏</a>
+        </div>
+      ` : ''}
+      ${g.error ? `<div style="margin-top:10px;padding:10px;background:rgba(239,69,101,0.1);border-radius:8px;color:#ffb3be">${esc(g.error)}</div>` : ''}
+    `;
+
+    // 代码生成日志
+    const logsEl = document.getElementById('tab-codegenLogs');
+    if (g.logs && g.logs.length) {
+      logsEl.innerHTML = '<div class="log-container">' + g.logs.map(l => `
+        <div class="log-entry">
+          <span class="log-time">${shortTime(l.time)}</span>
+          <span class="log-msg">${esc(l.message)}</span>
+        </div>
+      `).join('') + '</div>';
+    } else {
+      logsEl.innerHTML = '<div class="empty-state">暂无日志</div>';
+    }
+
+    // 刷新文件列表
+    await refreshFileTree();
+  } catch(e) {}
+}
+
+async function refreshFileTree() {
+  if (!selectedCodegenId) return;
+  try {
+    const resp = await fetch(`/api/codegen/${selectedCodegenId}/files`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const files = data.files || [];
+
+    const el = document.getElementById('fileTree');
+    if (!files.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:20px">暂无文件</div>';
+      return;
+    }
+
+    el.innerHTML = files.map(f => `
+      <div class="file-item ${f.path === selectedFile ? 'active' : ''}" onclick="selectFile('${esc(f.path)}')">
+        <span class="file-icon">${fileIcon(f.ext)}</span>
+        <span>${esc(f.path)}</span>
+        <span class="file-size">${formatSize(f.size)}</span>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function selectFile(path) {
+  selectedFile = path;
+  await refreshFileTree();
+  try {
+    const resp = await fetch(`/api/codegen/${selectedCodegenId}/file/${encodeURIComponent(path)}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    
+    const ext = path.split('.').pop();
+    const el = document.getElementById('codeViewer');
+    el.innerHTML = `
+      <div class="code-viewer">
+        <div class="code-header">
+          <span>${fileIcon('.' + ext)} ${esc(path)}</span>
+          <span class="muted">${formatSize(data.content.length)} bytes</span>
+        </div>
+        <div class="code-content"><code>${esc(data.content)}</code></div>
+      </div>
+    `;
+  } catch(e) {}
+}
+
+// ═══════════ Active Task & Runs ═══════════
 async function loadActiveTask() {
   const box = document.getElementById('activeTask');
   box.innerHTML = '加载中...';
@@ -463,7 +780,6 @@ async function loadActiveTask() {
     box.innerHTML = `
       <div><b>${t.task_id}</b> - ${t.task_title}</div>
       <div class="muted">阶段：${t.stage || '未标注'} ｜ 负责人：${t.owner || '未标注'}</div>
-      <div class="muted">状态：${t.task_status || '未标注'}</div>
     `;
   } catch(e) { box.innerHTML = '<span class="muted">读取失败</span>'; }
 }
@@ -496,9 +812,9 @@ async function refreshRuns() {
     const runs = await resp.json();
     const el = document.getElementById('runs');
     if (!runs.length) { el.innerHTML = '<div class="empty-state">暂无运行</div>'; return; }
-    el.innerHTML = runs.map(r => `
+    el.innerHTML = runs.slice(0, 10).map(r => `
       <div class="list-item ${r.run_id === selectedRunId ? 'active' : ''}" onclick="selectRun('${r.run_id}')">
-        <div class="list-item-title">${r.run_id} ${badge(r.status)}</div>
+        <div class="list-item-title">${r.run_id.substring(0, 15)}... ${badge(r.status)}</div>
         <div class="list-item-sub">轮次 ${r.current_round}/${r.max_rounds}</div>
       </div>
     `).join('');
@@ -518,12 +834,10 @@ async function refreshDetail() {
     if (!resp.ok) return;
     const run = await resp.json();
     document.getElementById('detail').innerHTML = `
-      <div><b>run_id:</b> ${run.run_id} ${badge(run.status)}</div>
-      <div><b>goal:</b> ${esc(run.goal)}</div>
+      <div><b>ID:</b> ${run.run_id.substring(0, 15)}... ${badge(run.status)}</div>
+      <div><b>目标:</b> ${esc(run.goal).substring(0, 100)}...</div>
       <div><b>轮次:</b> ${run.current_round}/${run.max_rounds}</div>
-      <div><b>turns:</b> ${run.turns.length}</div>
-      ${run.summary ? `<div style="margin-top:10px"><b>Summary:</b></div><pre>${esc(run.summary)}</pre>` : ''}
-      ${run.turns.length ? `<div style="margin-top:10px"><b>最近输出:</b></div><pre>${esc(run.turns.slice(-3).map(t => '[R' + t.round_index + '] ' + t.role + ' (' + t.consensus + ')\n' + t.content).join('\n\n---\n\n'))}</pre>` : ''}
+      ${run.summary ? `<div style="margin-top:10px"><b>结论:</b></div><pre style="max-height:200px">${esc(run.summary).substring(0, 1000)}</pre>` : ''}
     `;
   } catch(e) {}
 }
@@ -535,6 +849,8 @@ async function refreshAll() {
     loadActiveTask(),
     refreshRuns(),
     refreshDetail(),
+    refreshCodeGen(),
+    refreshCodegenDetail(),
   ]);
 }
 
