@@ -1,0 +1,63 @@
+{
+  "gen_id": "20260328-031829-38e9a0",
+  "project_id": null,
+  "status": "failed",
+  "created_at": "2026-03-28T03:18:29.558667Z",
+  "finished_at": "2026-03-28T03:27:51.940696Z",
+  "current_phase": "ui_layer",
+  "phases_completed": [
+    "reading_design",
+    "data_layer",
+    "utils",
+    "game_state"
+  ],
+  "files_generated": [
+    "js/data.js",
+    "js/utils.js",
+    "js/game-state.js"
+  ],
+  "logs": [
+    {
+      "time": "2026-03-28T03:18:29.559479Z",
+      "message": "📖 读取项目设计文档..."
+    },
+    {
+      "time": "2026-03-28T03:18:29.560930Z",
+      "message": "✅ 项目：沸腾掌柜：火锅店经营MVP"
+    },
+    {
+      "time": "2026-03-28T03:18:29.561209Z",
+      "message": "🎲 生成游戏数据层 (data.js)..."
+    },
+    {
+      "time": "2026-03-28T03:20:19.998578Z",
+      "message": "✅ data.js 完成"
+    },
+    {
+      "time": "2026-03-28T03:20:19.998880Z",
+      "message": "🔧 生成工具函数 (utils.js)..."
+    },
+    {
+      "time": "2026-03-28T03:22:51.755384Z",
+      "message": "✅ utils.js 完成"
+    },
+    {
+      "time": "2026-03-28T03:22:51.755702Z",
+      "message": "🎮 生成游戏状态管理 (game-state.js)..."
+    },
+    {
+      "time": "2026-03-28T03:25:51.558199Z",
+      "message": "✅ game-state.js 完成"
+    },
+    {
+      "time": "2026-03-28T03:25:51.558590Z",
+      "message": "🎨 生成 UI 管理层 (ui.js)..."
+    },
+    {
+      "time": "2026-03-28T03:27:51.940711Z",
+      "message": "❌ 代码生成失败: HTTPSConnectionPool(host='capi.quan2go.com', port=443): Read timed out. (read timeout=120)"
+    }
+  ],
+  "error": "HTTPSConnectionPool(host='capi.quan2go.com', port=443): Read timed out. (read timeout=120)",
+  "output_dir": "/data/dafoer1/AI_game_company/game-output/20260328-031829-38e9a0"
+}

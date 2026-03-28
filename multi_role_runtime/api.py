@@ -269,7 +269,7 @@ def get_generated_file(gen_id, file_path):
 
 @app.route("/api/codegen/<gen_id>/preview")
 def preview_generated_game(gen_id):
-    """预览生成的游戏（返回 index.html）。"""
+    """预览生成的游戏（返回经过路径修正的 index.html）。"""
     from pathlib import Path
     state = code_generator.get_generation(gen_id)
     if not state:
@@ -281,7 +281,17 @@ def preview_generated_game(gen_id):
     if not index_path.exists():
         return "游戏尚未生成完成", 404
     
-    return send_from_directory(str(gen_dir), "index.html")
+    # 读取 HTML 并修正静态资源路径（css/xxx → 相对于 preview 路由的路径）
+    html_content = index_path.read_text(encoding="utf-8", errors="ignore")
+    base_path = f"/api/codegen/{gen_id}/static/"
+    
+    # 替换 CSS 和 JS 的相对路径
+    html_content = html_content.replace('href="css/', f'href="{base_path}css/')
+    html_content = html_content.replace("href='css/", f"href='{base_path}css/")
+    html_content = html_content.replace('src="js/', f'src="{base_path}js/')
+    html_content = html_content.replace("src='js/", f"src='{base_path}js/")
+    
+    return html_content
 
 
 @app.route("/api/codegen/<gen_id>/static/<path:file_path>")
@@ -293,4 +303,23 @@ def serve_generated_static(gen_id, file_path):
         return "代码生成任务不存在", 404
     
     gen_dir = Path(state["output_dir"])
-    return send_from_directory(str(gen_dir), file_path)
+    
+    # 根据文件扩展名设置正确的 MIME 类型
+    mime_types = {
+        '.css': 'text/css',
+        '.js': 'application/javascript',
+        '.html': 'text/html',
+        '.json': 'application/json',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.svg': 'image/svg+xml',
+    }
+    
+    file_full = gen_dir / file_path
+    if not file_full.exists():
+        return "文件不存在", 404
+    
+    ext = file_full.suffix.lower()
+    mimetype = mime_types.get(ext, 'application/octet-stream')
+    
+    return send_from_directory(str(gen_dir), file_path, mimetype=mimetype)

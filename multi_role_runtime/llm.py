@@ -23,7 +23,7 @@ class LLMClient(object):
             "Authorization": "Bearer " + self.api_key,
             "Content-Type": "application/json",
         }
-        resp = requests.post(url, json=payload, headers=headers, timeout=120)
+        resp = requests.post(url, json=payload, headers=headers, timeout=300)
         resp.raise_for_status()
 
         try:

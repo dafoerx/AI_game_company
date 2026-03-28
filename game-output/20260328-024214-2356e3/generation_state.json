@@ -1,0 +1,110 @@
+{
+  "gen_id": "20260328-024214-2356e3",
+  "project_id": "20260328-015852-56ec08",
+  "status": "completed",
+  "created_at": "2026-03-28T02:42:14.990705Z",
+  "finished_at": "2026-03-28T02:44:51.390713Z",
+  "current_phase": "done",
+  "phases_completed": [
+    "reading_design",
+    "generating_skeleton",
+    "module_游戏状态管理",
+    "module_资源与数值系统",
+    "module_UI界面系统",
+    "module_交互与事件系统",
+    "module_动画与特效",
+    "enhancing_animations"
+  ],
+  "files_generated": [
+    "index.html",
+    "css/style.css",
+    "css/animations.css",
+    "js/game-state.js",
+    "js/data.js",
+    "js/ui.js",
+    "js/events.js",
+    "js/utils.js",
+    "js/main.js",
+    "README.md"
+  ],
+  "logs": [
+    {
+      "time": "2026-03-28T02:42:14.991510Z",
+      "message": "📖 读取项目设计文档..."
+    },
+    {
+      "time": "2026-03-28T02:42:14.995929Z",
+      "message": "✅ 读取完成：沸腾掌柜：火锅店经营MVP"
+    },
+    {
+      "time": "2026-03-28T02:42:14.996190Z",
+      "message": "🏗️ 生成项目基础框架..."
+    },
+    {
+      "time": "2026-03-28T02:42:14.996633Z",
+      "message": "✅ 基础框架生成完成，包含 3 个文件"
+    },
+    {
+      "time": "2026-03-28T02:42:14.996886Z",
+      "message": "🔧 生成模块 [1/5]: 游戏状态管理"
+    },
+    {
+      "time": "2026-03-28T02:42:14.998135Z",
+      "message": "✅ 模块 游戏状态管理 生成完成"
+    },
+    {
+      "time": "2026-03-28T02:42:14.998963Z",
+      "message": "🔧 生成模块 [2/5]: 资源与数值系统"
+    },
+    {
+      "time": "2026-03-28T02:44:51.383252Z",
+      "message": "✅ 模块 资源与数值系统 生成完成"
+    },
+    {
+      "time": "2026-03-28T02:44:51.383554Z",
+      "message": "🔧 生成模块 [3/5]: UI界面系统"
+    },
+    {
+      "time": "2026-03-28T02:44:51.384602Z",
+      "message": "✅ 模块 UI界面系统 生成完成"
+    },
+    {
+      "time": "2026-03-28T02:44:51.384915Z",
+      "message": "🔧 生成模块 [4/5]: 交互与事件系统"
+    },
+    {
+      "time": "2026-03-28T02:44:51.386013Z",
+      "message": "✅ 模块 交互与事件系统 生成完成"
+    },
+    {
+      "time": "2026-03-28T02:44:51.387379Z",
+      "message": "🔧 生成模块 [5/5]: 动画与特效"
+    },
+    {
+      "time": "2026-03-28T02:44:51.388679Z",
+      "message": "✅ 模块 动画与特效 生成完成"
+    },
+    {
+      "time": "2026-03-28T02:44:51.388918Z",
+      "message": "✨ 增强 UI 动画效果..."
+    },
+    {
+      "time": "2026-03-28T02:44:51.389930Z",
+      "message": "✅ 动画效果增强完成"
+    },
+    {
+      "time": "2026-03-28T02:44:51.390216Z",
+      "message": "📦 生成启动文件..."
+    },
+    {
+      "time": "2026-03-28T02:44:51.390720Z",
+      "message": "🎉 代码生成完成！共 10 个文件"
+    },
+    {
+      "time": "2026-03-28T02:44:51.390725Z",
+      "message": "📁 输出目录: /data/dafoer1/AI_game_company/game-output/20260328-024214-2356e3"
+    }
+  ],
+  "error": null,
+  "output_dir": "/data/dafoer1/AI_game_company/game-output/20260328-024214-2356e3"
+}
