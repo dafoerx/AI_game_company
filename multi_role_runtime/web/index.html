@@ -111,6 +111,12 @@
       box-shadow: 0 2px 12px rgba(78, 205, 196, 0.3);
     }
     .btn-codegen:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(78, 205, 196, 0.4); }
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4565, #d63851);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(239, 69, 101, 0.3);
+    }
+    .btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(239, 69, 101, 0.4); }
     .btn-secondary {
       background: rgba(100, 120, 200, 0.15);
       color: #8ba3e8;
@@ -310,6 +316,19 @@
       to { opacity: 1; transform: translateY(0); }
     }
     .animate-in { animation: slideIn .3s ease; }
+
+    /* Running dot indicator */
+    .running-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      background: #89e6bd;
+      border-radius: 50%;
+      animation: runningPulse 1.2s infinite;
+    }
+    @keyframes runningPulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(137, 230, 189, 0.6); }
+      50% { opacity: 0.4; box-shadow: 0 0 8px rgba(137, 230, 189, 0.3); }
+    }
   </style>
 </head>
 <body>
@@ -373,11 +392,17 @@
       </select>
       <button class="btn btn-success" onclick="launchGame()" id="launchGameBtn" disabled>🚀 启动游戏</button>
       <button class="btn btn-secondary" onclick="launchGameNewTab()" id="launchGameNewTabBtn" disabled>↗️ 新窗口打开</button>
+      <button class="btn btn-danger" onclick="stopGame()" id="stopGameBtn" style="display:none">⏹ 停止游戏</button>
     </div>
     <div id="gamePreviewContainer" style="margin-top:16px;display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <span style="font-size:13px;color:#89e6bd;font-weight:600" id="gamePreviewTitle">🎮 游戏预览</span>
-        <button class="btn btn-secondary" onclick="closeGamePreview()" style="padding:4px 12px;font-size:12px">✕ 关闭预览</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="gameRunningIndicator" style="font-size:12px;color:#89e6bd;display:flex;align-items:center;gap:4px">
+            <span class="running-dot"></span> 运行中
+          </span>
+          <button class="btn btn-danger" onclick="stopGame()" style="padding:4px 14px;font-size:12px">⏹ 停止游戏</button>
+        </div>
       </div>
       <iframe id="gamePreviewFrame" style="
         width:100%; height:600px;
@@ -705,15 +730,34 @@ async function refreshGameRunSelect() {
 }
 
 // 监听游戏运行选择变化
+let gameRunning = false; // 追踪游戏运行状态
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('gameRunSelect').addEventListener('change', function() {
     const hasVal = this.value !== '';
-    document.getElementById('launchGameBtn').disabled = !hasVal;
+    document.getElementById('launchGameBtn').disabled = !hasVal || gameRunning;
     document.getElementById('launchGameNewTabBtn').disabled = !hasVal;
-    // 关闭预览（如果切换了选择）
-    closeGamePreview();
+    // 如果游戏正在运行且切换了选择，不自动关闭（让用户手动停止）
   });
 });
+
+function updateGameButtons(running) {
+  gameRunning = running;
+  const launchBtn = document.getElementById('launchGameBtn');
+  const stopBtn = document.getElementById('stopGameBtn');
+  const sel = document.getElementById('gameRunSelect');
+
+  if (running) {
+    launchBtn.style.display = 'none';
+    stopBtn.style.display = '';
+    sel.disabled = true;
+  } else {
+    launchBtn.style.display = '';
+    stopBtn.style.display = 'none';
+    sel.disabled = false;
+    const hasVal = sel.value !== '';
+    launchBtn.disabled = !hasVal;
+  }
+}
 
 function launchGame() {
   const genId = document.getElementById('gameRunSelect').value;
@@ -729,6 +773,7 @@ function launchGame() {
   title.textContent = `🎮 正在运行: ${selectedText}`;
   frame.src = `/api/codegen/${genId}/preview`;
   container.style.display = '';
+  updateGameButtons(true);
 
   // 滚动到预览区域
   container.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -740,11 +785,18 @@ function launchGameNewTab() {
   window.open(`/api/codegen/${genId}/preview`, '_blank');
 }
 
-function closeGamePreview() {
+function stopGame() {
   const container = document.getElementById('gamePreviewContainer');
   const frame = document.getElementById('gamePreviewFrame');
-  container.style.display = 'none';
+  // 清空 iframe 来停止游戏
   frame.src = 'about:blank';
+  container.style.display = 'none';
+  updateGameButtons(false);
+}
+
+// 兼容旧的 closeGamePreview 调用
+function closeGamePreview() {
+  stopGame();
 }
 
 async function startCodeGen() {
@@ -815,12 +867,16 @@ function updateCodegenStatus(g) {
       </div>
     `;
   } else if (g.status === 'completed' || g.status === 'done') {
+    const isThisGameRunning = gameRunning && document.getElementById('gamePreviewFrame').src.includes(g.gen_id);
     el.innerHTML = `
       <div class="animate-in" style="padding:12px;background:rgba(44,182,125,0.1);border-radius:10px">
         <div style="color:#89e6bd;font-weight:600">✅ 代码生成完成！ <span style="font-weight:400;opacity:0.8">${esc(projName)}</span></div>
         <div class="muted" style="margin-top:4px">共 ${g.files_generated ? g.files_generated.length : 0} 个文件</div>
         <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="btn btn-success" onclick="quickLaunchGame('${g.gen_id}')" style="padding:6px 14px;font-size:13px">🎮 内嵌运行</button>
+          ${isThisGameRunning
+            ? `<button class="btn btn-danger" onclick="stopGame()" style="padding:6px 14px;font-size:13px">⏹ 停止游戏</button>`
+            : `<button class="btn btn-success" onclick="quickLaunchGame('${g.gen_id}')" style="padding:6px 14px;font-size:13px">🎮 内嵌运行</button>`
+          }
           <a href="/api/codegen/${g.gen_id}/preview" target="_blank" class="btn btn-codegen" style="padding:6px 14px;font-size:13px;text-decoration:none">↗️ 新窗口运行</a>
         </div>
       </div>
@@ -872,7 +928,10 @@ async function refreshCodegenDetail() {
       <div class="muted" style="margin-bottom:4px">🔧 当前阶段: ${g.current_phase || '-'}</div>
       ${(g.status === 'completed' || g.status === 'done') ? `
         <div class="btn-group" style="margin-top:10px">
-          <button class="btn btn-success" onclick="quickLaunchGame('${g.gen_id}')">🎮 内嵌运行游戏</button>
+          ${(gameRunning && document.getElementById('gamePreviewFrame').src.includes(g.gen_id))
+            ? '<button class="btn btn-danger" onclick="stopGame()">⏹ 停止游戏</button>'
+            : `<button class="btn btn-success" onclick="quickLaunchGame('${g.gen_id}')">🎮 内嵌运行游戏</button>`
+          }
           <a href="/api/codegen/${g.gen_id}/preview" target="_blank" class="btn btn-codegen" style="text-decoration:none">↗️ 新窗口运行</a>
         </div>
       ` : ''}
@@ -1035,7 +1094,6 @@ function quickLaunchGame(genId) {
   const sel = document.getElementById('gameRunSelect');
   sel.value = genId;
   // 如果下拉框中没有这个选项（可能还没刷新），直接用 iframe 打开
-  document.getElementById('launchGameBtn').disabled = false;
   document.getElementById('launchGameNewTabBtn').disabled = false;
 
   // 直接启动游戏
@@ -1048,6 +1106,7 @@ function quickLaunchGame(genId) {
   title.textContent = `🎮 正在运行游戏...`;
   frame.src = `/api/codegen/${genId}/preview`;
   container.style.display = '';
+  updateGameButtons(true);
 
   container.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
