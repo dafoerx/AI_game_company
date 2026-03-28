@@ -121,6 +121,16 @@
 
     .btn-group { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
 
+    /* Select focus */
+    select:focus { outline: none; border-color: rgba(78, 205, 196, 0.6); }
+    select option { background: #141b33; color: #fff; }
+
+    /* Game runner card */
+    .game-runner-card {
+      background: linear-gradient(135deg, rgba(44, 182, 125, 0.08), rgba(76, 110, 255, 0.05));
+      border-color: rgba(44, 182, 125, 0.25);
+    }
+
     /* Badge */
     .badge {
       display: inline-block;
@@ -324,12 +334,57 @@
   <!-- ======= 代码生成控制台 ======= -->
   <div class="card codegen-card full-width">
     <h3><span class="icon">⚡</span> 代码生成工坊</h3>
-    <p class="muted" style="margin-bottom:10px">设计规划完成后，点击生成按钮，AI将自动产出完整可运行的游戏代码（HTML/CSS/JS），包含精美动画效果。</p>
-    <div class="btn-group">
+    <p class="muted" style="margin-bottom:10px">设计规划完成后，选择一个项目并点击生成按钮，AI将自动产出完整可运行的游戏代码（HTML/CSS/JS），包含精美动画效果。</p>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <select id="codegenProjectSelect" style="
+        flex:1; min-width:200px; max-width:400px;
+        background:rgba(15,21,48,0.8); color:#fff;
+        border:1px solid rgba(78,205,196,0.3); border-radius:10px;
+        padding:10px 14px; font-size:14px;
+        appearance:none; -webkit-appearance:none;
+        background-image:url('data:image/svg+xml;utf8,<svg fill=\"%238ba3e8\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/></svg>');
+        background-repeat:no-repeat; background-position:right 10px center; background-size:20px;
+        cursor:pointer; transition:border-color .2s;
+      ">
+        <option value="">— 使用当前活跃设计文档 —</option>
+      </select>
       <button class="btn btn-codegen" onclick="startCodeGen()" id="codegenBtn">💻 生成游戏代码</button>
       <button class="btn btn-secondary" onclick="refreshCodeGen()">🔄 刷新状态</button>
     </div>
     <div id="codegenStatus" style="margin-top:14px"></div>
+  </div>
+
+  <!-- ======= 游戏运行中心 ======= -->
+  <div class="card full-width" id="gameRunnerCard" style="display:none">
+    <h3><span class="icon">🎮</span> 游戏运行中心</h3>
+    <p class="muted" style="margin-bottom:14px">选择一个已完成的代码生成记录，一键运行游戏。</p>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <select id="gameRunSelect" style="
+        flex:1; min-width:200px; max-width:500px;
+        background:rgba(15,21,48,0.8); color:#fff;
+        border:1px solid rgba(44,182,125,0.3); border-radius:10px;
+        padding:10px 14px; font-size:14px;
+        appearance:none; -webkit-appearance:none;
+        background-image:url('data:image/svg+xml;utf8,<svg fill=\"%2389e6bd\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/></svg>');
+        background-repeat:no-repeat; background-position:right 10px center; background-size:20px;
+        cursor:pointer; transition:border-color .2s;
+      ">
+        <option value="">— 选择要运行的游戏 —</option>
+      </select>
+      <button class="btn btn-success" onclick="launchGame()" id="launchGameBtn" disabled>🚀 启动游戏</button>
+      <button class="btn btn-secondary" onclick="launchGameNewTab()" id="launchGameNewTabBtn" disabled>↗️ 新窗口打开</button>
+    </div>
+    <div id="gamePreviewContainer" style="margin-top:16px;display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:13px;color:#89e6bd;font-weight:600" id="gamePreviewTitle">🎮 游戏预览</span>
+        <button class="btn btn-secondary" onclick="closeGamePreview()" style="padding:4px 12px;font-size:12px">✕ 关闭预览</button>
+      </div>
+      <iframe id="gamePreviewFrame" style="
+        width:100%; height:600px;
+        border:1px solid rgba(44,182,125,0.3); border-radius:12px;
+        background:#000;
+      " sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
   </div>
 
   <!-- ======= 项目列表 ======= -->
@@ -590,8 +645,113 @@ async function refreshProjectDetail() {
 }
 
 // ═══════════ Code Generation ═══════════
+
+// 更新代码生成的项目选择下拉框
+async function refreshCodegenProjectSelect() {
+  try {
+    const resp = await fetch('/api/projects');
+    const projects = await resp.json();
+    const sel = document.getElementById('codegenProjectSelect');
+    // 保留当前选中值
+    const curVal = sel.value;
+    sel.innerHTML = '<option value="">— 使用当前活跃设计文档 —</option>';
+    projects.forEach(p => {
+      const name = (p.plan && p.plan.project_name) ? p.plan.project_name : p.direction.substring(0, 30);
+      const status = p.status === 'completed' ? '✅' : p.status === 'executing' ? '🔄' : p.status === 'planned' ? '📋' : '🔧';
+      const opt = document.createElement('option');
+      opt.value = p.project_id;
+      opt.textContent = `${status} ${name} (${p.project_id.substring(0, 15)}...)`;
+      sel.appendChild(opt);
+    });
+    // 恢复选中
+    if (curVal) sel.value = curVal;
+  } catch(e) {}
+}
+
+// 更新游戏运行选择下拉框（只显示已完成的生成记录）
+async function refreshGameRunSelect() {
+  try {
+    const resp = await fetch('/api/codegen');
+    const gens = await resp.json();
+    const completedGens = gens.filter(g => g.status === 'completed' || g.status === 'done');
+
+    const card = document.getElementById('gameRunnerCard');
+    const sel = document.getElementById('gameRunSelect');
+    const launchBtn = document.getElementById('launchGameBtn');
+    const launchNewTabBtn = document.getElementById('launchGameNewTabBtn');
+
+    if (completedGens.length > 0) {
+      card.style.display = '';
+      const curVal = sel.value;
+      sel.innerHTML = '<option value="">— 选择要运行的游戏 —</option>';
+      completedGens.forEach(g => {
+        const name = g.project_name || '未知项目';
+        const fileCount = g.files_generated ? g.files_generated.length : 0;
+        const time = g.created_at ? g.created_at.replace('T', ' ').replace('Z', '').substring(0, 16) : '';
+        const opt = document.createElement('option');
+        opt.value = g.gen_id;
+        opt.textContent = `🎮 ${name} — ${fileCount}个文件 (${time})`;
+        sel.appendChild(opt);
+      });
+      if (curVal) sel.value = curVal;
+
+      const hasSelection = sel.value !== '';
+      launchBtn.disabled = !hasSelection;
+      launchNewTabBtn.disabled = !hasSelection;
+    } else {
+      card.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+// 监听游戏运行选择变化
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('gameRunSelect').addEventListener('change', function() {
+    const hasVal = this.value !== '';
+    document.getElementById('launchGameBtn').disabled = !hasVal;
+    document.getElementById('launchGameNewTabBtn').disabled = !hasVal;
+    // 关闭预览（如果切换了选择）
+    closeGamePreview();
+  });
+});
+
+function launchGame() {
+  const genId = document.getElementById('gameRunSelect').value;
+  if (!genId) return alert('请先选择一个游戏');
+  const container = document.getElementById('gamePreviewContainer');
+  const frame = document.getElementById('gamePreviewFrame');
+  const title = document.getElementById('gamePreviewTitle');
+
+  // 从下拉框获取选中项的文本
+  const selectEl = document.getElementById('gameRunSelect');
+  const selectedText = selectEl.options[selectEl.selectedIndex].textContent;
+
+  title.textContent = `🎮 正在运行: ${selectedText}`;
+  frame.src = `/api/codegen/${genId}/preview`;
+  container.style.display = '';
+
+  // 滚动到预览区域
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function launchGameNewTab() {
+  const genId = document.getElementById('gameRunSelect').value;
+  if (!genId) return alert('请先选择一个游戏');
+  window.open(`/api/codegen/${genId}/preview`, '_blank');
+}
+
+function closeGamePreview() {
+  const container = document.getElementById('gamePreviewContainer');
+  const frame = document.getElementById('gamePreviewFrame');
+  container.style.display = 'none';
+  frame.src = 'about:blank';
+}
+
 async function startCodeGen() {
   const btn = document.getElementById('codegenBtn');
+  const projectSelect = document.getElementById('codegenProjectSelect');
+  const selectedProjectId = projectSelect.value || null;
+
   btn.disabled = true;
   btn.textContent = '🔄 启动中...';
   try {
@@ -615,49 +775,60 @@ async function refreshCodeGen() {
     const gens = await resp.json();
     const el = document.getElementById('codegenList');
     if (!gens.length) { el.innerHTML = '<div class="empty-state">暂无代码生成记录</div>'; return; }
-    el.innerHTML = gens.map(g => `
+    el.innerHTML = gens.map(g => {
+      const projName = g.project_name || '未关联项目';
+      return `
       <div class="list-item ${g.gen_id === selectedCodegenId ? 'active' : ''}" onclick="selectCodegen('${g.gen_id}')">
-        <div class="list-item-title">${g.gen_id.substring(0, 15)}... ${badge(g.status)}</div>
-        <div class="list-item-sub">${g.files_generated ? g.files_generated.length : 0} 个文件 · ${g.current_phase || ''}</div>
+        <div class="list-item-title">${esc(projName)} ${badge(g.status)}</div>
+        <div class="list-item-sub">${g.gen_id.substring(0, 15)}... · ${g.files_generated ? g.files_generated.length : 0} 个文件 · ${g.current_phase || ''}</div>
       </div>
-    `).join('');
+    `}).join('');
 
     // 更新顶部状态
     const latestGen = gens[0];
     if (latestGen) {
       updateCodegenStatus(latestGen);
     }
+
+    // 更新游戏运行下拉
+    await refreshGameRunSelect();
   } catch(e) {}
 }
 
 function updateCodegenStatus(g) {
   const el = document.getElementById('codegenStatus');
-  if (g.status === 'generating') {
+  const projName = g.project_name || '未关联项目';
+  if (g.status === 'generating' || g.status === 'initializing') {
     const phases = g.phases_completed || [];
-    const progress = Math.min(100, (phases.length / 6) * 100);
+    const totalPhases = 10;
+    const progress = Math.min(100, (phases.length / totalPhases) * 100);
     el.innerHTML = `
       <div class="animate-in">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-          <span>${statusCN(g.status)}</span>
+          <span>${statusCN(g.status)} <span class="muted" style="margin-left:6px">${esc(projName)}</span></span>
           <span class="muted">${g.current_phase}</span>
         </div>
         <div class="progress-container">
           <div class="progress-bar" style="width:${progress}%"></div>
         </div>
-        <div class="muted" style="font-size:12px">${phases.length} 个阶段已完成 · ${g.files_generated ? g.files_generated.length : 0} 个文件</div>
+        <div class="muted" style="font-size:12px">${phases.length}/${totalPhases} 个阶段已完成 · ${g.files_generated ? g.files_generated.length : 0} 个文件</div>
       </div>
     `;
   } else if (g.status === 'completed' || g.status === 'done') {
     el.innerHTML = `
       <div class="animate-in" style="padding:12px;background:rgba(44,182,125,0.1);border-radius:10px">
-        <div style="color:#89e6bd;font-weight:600">✅ 代码生成完成！</div>
-        <div class="muted" style="margin-top:4px">共 ${g.files_generated ? g.files_generated.length : 0} 个文件 · <a href="/api/codegen/${g.gen_id}/preview" target="_blank" style="color:#4ecdc4">🎮 预览游戏</a></div>
+        <div style="color:#89e6bd;font-weight:600">✅ 代码生成完成！ <span style="font-weight:400;opacity:0.8">${esc(projName)}</span></div>
+        <div class="muted" style="margin-top:4px">共 ${g.files_generated ? g.files_generated.length : 0} 个文件</div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-success" onclick="quickLaunchGame('${g.gen_id}')" style="padding:6px 14px;font-size:13px">🎮 内嵌运行</button>
+          <a href="/api/codegen/${g.gen_id}/preview" target="_blank" class="btn btn-codegen" style="padding:6px 14px;font-size:13px;text-decoration:none">↗️ 新窗口运行</a>
+        </div>
       </div>
     `;
   } else if (g.status === 'failed') {
     el.innerHTML = `
       <div style="padding:12px;background:rgba(239,69,101,0.1);border-radius:10px">
-        <div style="color:#ffb3be;font-weight:600">❌ 生成失败</div>
+        <div style="color:#ffb3be;font-weight:600">❌ 生成失败 <span style="font-weight:400;opacity:0.8">${esc(projName)}</span></div>
         <div class="muted" style="margin-top:4px">${esc(g.error || '未知错误')}</div>
       </div>
     `;
@@ -681,25 +852,28 @@ async function refreshCodegenDetail() {
 
     const detailEl = document.getElementById('codegenDetail');
     const phases = g.phases_completed || [];
-    const totalPhases = 6;
+    const totalPhases = 10;
+    const projName = g.project_name || '未关联项目';
     
     detailEl.innerHTML = `
       <div class="phase-bar">
         ${Array.from({length: totalPhases}, (_, i) => {
           const done = i < phases.length;
-          const active = i === phases.length && g.status === 'generating';
+          const active = i === phases.length && (g.status === 'generating' || g.status === 'initializing');
           return `<div class="phase-step ${done ? 'done' : ''} ${active ? 'codegen' : ''}"></div>`;
         }).join('')}
       </div>
       <div style="margin-bottom:10px">
-        <strong>生成ID:</strong> ${g.gen_id} ${badge(g.status)}
+        <strong style="font-size:15px">${esc(projName)}</strong> ${badge(g.status)}
       </div>
-      <div class="muted" style="margin-bottom:6px">📂 输出: ${esc(g.output_dir)}</div>
-      <div class="muted" style="margin-bottom:6px">📁 文件数: ${g.files_generated ? g.files_generated.length : 0}</div>
-      <div class="muted" style="margin-bottom:6px">🔧 当前阶段: ${g.current_phase || '-'}</div>
-      ${g.status === 'completed' || g.status === 'done' ? `
+      <div class="muted" style="margin-bottom:4px">🆔 ${g.gen_id}</div>
+      ${g.project_id ? `<div class="muted" style="margin-bottom:4px">📎 关联项目: ${g.project_id.substring(0, 15)}...</div>` : ''}
+      <div class="muted" style="margin-bottom:4px">📁 文件数: ${g.files_generated ? g.files_generated.length : 0}</div>
+      <div class="muted" style="margin-bottom:4px">🔧 当前阶段: ${g.current_phase || '-'}</div>
+      ${(g.status === 'completed' || g.status === 'done') ? `
         <div class="btn-group" style="margin-top:10px">
-          <a href="/api/codegen/${g.gen_id}/preview" target="_blank" class="btn btn-codegen">🎮 预览游戏</a>
+          <button class="btn btn-success" onclick="quickLaunchGame('${g.gen_id}')">🎮 内嵌运行游戏</button>
+          <a href="/api/codegen/${g.gen_id}/preview" target="_blank" class="btn btn-codegen" style="text-decoration:none">↗️ 新窗口运行</a>
         </div>
       ` : ''}
       ${g.error ? `<div style="margin-top:10px;padding:10px;background:rgba(239,69,101,0.1);border-radius:8px;color:#ffb3be">${esc(g.error)}</div>` : ''}
@@ -851,7 +1025,31 @@ async function refreshAll() {
     refreshDetail(),
     refreshCodeGen(),
     refreshCodegenDetail(),
+    refreshCodegenProjectSelect(),
   ]);
+}
+
+// 从顶部状态栏或详情中快速启动游戏
+function quickLaunchGame(genId) {
+  // 设置游戏运行下拉框的值
+  const sel = document.getElementById('gameRunSelect');
+  sel.value = genId;
+  // 如果下拉框中没有这个选项（可能还没刷新），直接用 iframe 打开
+  document.getElementById('launchGameBtn').disabled = false;
+  document.getElementById('launchGameNewTabBtn').disabled = false;
+
+  // 直接启动游戏
+  const container = document.getElementById('gamePreviewContainer');
+  const frame = document.getElementById('gamePreviewFrame');
+  const title = document.getElementById('gamePreviewTitle');
+  const card = document.getElementById('gameRunnerCard');
+
+  card.style.display = '';
+  title.textContent = `🎮 正在运行游戏...`;
+  frame.src = `/api/codegen/${genId}/preview`;
+  container.style.display = '';
+
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 setInterval(refreshAll, 3000);

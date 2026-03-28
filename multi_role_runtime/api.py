@@ -196,7 +196,15 @@ def start_code_generation():
     """
     data = request.get_json(silent=True) or {}
     project_id = data.get("project_id")
-    state = code_generator.start_generation(project_id)
+
+    # 如果指定了 project_id，获取项目名称附加到 state
+    project_name = None
+    if project_id:
+        proj = project_engine.get_project(project_id)
+        if proj and proj.get("plan"):
+            project_name = proj["plan"].get("project_name")
+
+    state = code_generator.start_generation(project_id, project_name=project_name)
     return jsonify(state)
 
 

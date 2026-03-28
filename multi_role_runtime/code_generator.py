@@ -176,12 +176,13 @@ class CodeGenerator:
         with self._lock:
             return self._generations.get(gen_id)
 
-    def start_generation(self, project_id=None):
+    def start_generation(self, project_id=None, project_name=None):
         gen_id = datetime.utcnow().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
 
         state = {
             "gen_id": gen_id,
             "project_id": project_id,
+            "project_name": project_name,
             "status": "initializing",
             "created_at": datetime.utcnow().isoformat() + "Z",
             "finished_at": None,
@@ -231,6 +232,9 @@ class CodeGenerator:
                 raise ValueError("未找到有效的项目设计文档，请先完成项目规划")
 
             self._log(state, f"✅ 项目：{design['project_name']}")
+            # 如果创建时没有传入项目名称，从设计文档中获取
+            if not state.get("project_name"):
+                state["project_name"] = design['project_name']
             state["phases_completed"].append("reading_design")
             self._persist_state(gen_dir, state)
 
