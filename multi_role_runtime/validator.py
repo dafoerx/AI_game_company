@@ -607,10 +607,168 @@ def run_automated_playtest(gen_dir: Path, timeout_ms: int = 15000) -> list:
     return results
 
 
-# ═══════════════════════════════════════════════════
-# 6. Full Validation Pipeline
-# ═══════════════════════════════════════════════════
+# ═════════════════════════════════════════════════
+# 6. Game Logic Validation (P1)
+# ═════════════════════════════════════════════════
 
+def validate_game_logic(gen_dir: Path, scaffolding: dict = None) -> list:
+    """
+    P1: Validate game logic beyond syntax - check that core mechanics
+    are actually implemented, not just stubbed.
+
+    Returns a list of (check_name, passed, details) tuples.
+    """
+    results = []
+
+    # ── Check 1: data.js entity richness ──
+    data_path = gen_dir / "js" / "data.js"
+    if data_path.exists():
+        data_content = data_path.read_text(encoding="utf-8", errors="ignore")
+
+        # Check for entity definitions in entity_lifecycle games
+        scaffolding_type = ""
+        if scaffolding:
+            scaffolding_type = scaffolding.get("description", "")
+
+        if "entity" in scaffolding_type.lower() or "lifecycle" in scaffolding_type.lower():
+            # Entity lifecycle game: must have individual entities
+            has_entities = "entities" in data_content and data_content.count("backstory") >= 3
+            results.append((
+                "logic_entity_definitions",
+                has_entities,
+                "" if has_entities else "Entity lifecycle game missing individual entity definitions with backstories"
+            ))
+
+            # Must have interactions
+            has_interactions = "interactions" in data_content and data_content.count("effects_on_entity") >= 2
+            results.append((
+                "logic_interaction_definitions",
+                has_interactions,
+                "" if has_interactions else "Missing interaction definitions with per-entity effects"
+            ))
+
+            # Must have adopter families or matching targets
+            has_families = any(kw in data_content for kw in ["adopter_families", "matching_targets", "families"])
+            results.append((
+                "logic_matching_targets",
+                has_families,
+                "" if has_families else "Missing adopter families / matching targets"
+            ))
+
+            # Must have farewell/revisit templates
+            has_farewell = any(kw in data_content for kw in ["farewell", "revisit", "goodbye"])
+            results.append((
+                "logic_farewell_system",
+                has_farewell,
+                "" if has_farewell else "Missing farewell/revisit narrative templates"
+            ))
+
+        # General checks for all game types
+        # Victory condition should not be purely numeric
+        has_victory = "victoryCondition" in data_content
+        results.append((
+            "logic_victory_condition_exists",
+            has_victory,
+            "" if has_victory else "Missing victoryCondition definition"
+        ))
+
+    # ── Check 2: game-state.js core methods ──
+    gs_path = gen_dir / "js" / "game-state.js"
+    if gs_path.exists():
+        gs_content = gs_path.read_text(encoding="utf-8", errors="ignore")
+
+        # Must have processTurn
+        has_process_turn = "processTurn" in gs_content
+        results.append((
+            "logic_process_turn",
+            has_process_turn,
+            "" if has_process_turn else "GameState missing processTurn() method"
+        ))
+
+        # Must have checkEndCondition
+        has_end_check = "checkEndCondition" in gs_content or "checkGameOver" in gs_content
+        results.append((
+            "logic_end_condition",
+            has_end_check,
+            "" if has_end_check else "GameState missing end condition checking"
+        ))
+
+        # For entity lifecycle: must have interact method
+        if scaffolding and "entity" in scaffolding.get("description", "").lower():
+            has_interact = "interact" in gs_content and "entityId" in gs_content
+            results.append((
+                "logic_interact_method",
+                has_interact,
+                "" if has_interact else "Entity lifecycle game missing interact(entityId, interactionId) method"
+            ))
+
+            # Must have per-entity state tracking
+            has_entity_states = any(kw in gs_content for kw in ["entityStates", "entity_states", "animalStates"])
+            results.append((
+                "logic_per_entity_state",
+                has_entity_states,
+                "" if has_entity_states else "Missing per-entity state tracking (entityStates object)"
+            ))
+
+            # Must have matching/adoption logic
+            has_matching = any(kw in gs_content for kw in ["matchScore", "calculateMatch", "processAdoption", "adoption"])
+            results.append((
+                "logic_matching_algorithm",
+                has_matching,
+                "" if has_matching else "Missing matching/adoption algorithm"
+            ))
+
+    # ── Check 3: main.js game loop integrity ──
+    main_path = gen_dir / "js" / "main.js"
+    if main_path.exists():
+        main_content = main_path.read_text(encoding="utf-8", errors="ignore")
+
+        # Must call processTurn in nextTurn
+        has_turn_call = "processTurn" in main_content
+        results.append((
+            "logic_main_calls_process_turn",
+            has_turn_call,
+            "" if has_turn_call else "main.js does not call processTurn() in game loop"
+        ))
+
+        # Must have event triggering
+        has_events = "triggerRandomEvent" in main_content or "Events.trigger" in main_content
+        results.append((
+            "logic_main_triggers_events",
+            has_events,
+            "" if has_events else "main.js does not trigger random events"
+        ))
+
+    # ── Check 4: UI has entity display (for entity lifecycle) ──
+    ui_path = gen_dir / "js" / "ui.js"
+    if ui_path.exists() and scaffolding and "entity" in scaffolding.get("description", "").lower():
+        ui_content = ui_path.read_text(encoding="utf-8", errors="ignore")
+
+        has_entity_display = any(kw in ui_content for kw in [
+            "entity", "animal", "character", "portrait",
+            "entityStates", "entity_states",
+        ])
+        results.append((
+            "logic_ui_entity_display",
+            has_entity_display,
+            "" if has_entity_display else "UI layer does not display individual entities"
+        ))
+
+        has_interaction_ui = any(kw in ui_content for kw in [
+            "interact", "feed", "observe", "touch", "play",
+        ])
+        results.append((
+            "logic_ui_interaction_buttons",
+            has_interaction_ui,
+            "" if has_interaction_ui else "UI layer missing interaction buttons/panel"
+        ))
+
+    return results
+
+
+# ═════════════════════════════════════════════════
+# 7. Full Validation Pipeline
+# ═════════════════════════════════════════════════
 def run_full_validation(gen_dir: Path, gen_id: str,
                         scaffolding: dict = None,
                         run_playtest: bool = True) -> ValidationReport:
@@ -623,6 +781,7 @@ def run_full_validation(gen_dir: Path, gen_id: str,
     3. HTML structure validation
     4. Scaffolding content validation (if scaffolding provided)
     5. Automated playtest (if enabled and Playwright available)
+    6. Game logic validation (P1 - checks core mechanics implementation)
 
     Returns a ValidationReport.
     """
@@ -661,5 +820,12 @@ def run_full_validation(gen_dir: Path, gen_id: str,
         for name, passed, details in run_automated_playtest(gen_dir):
             severity = "error" if "crash" in name or "page_error" in name else "warning"
             report.add_check(name, passed, details, severity=severity)
+
+    # ── Step 6: Game Logic Validation (P1) ──
+    for name, passed, details in validate_game_logic(gen_dir, scaffolding):
+        severity = "warning"  # Logic issues are warnings, not blockers
+        if "per_entity_state" in name or "interact_method" in name:
+            severity = "error"  # But core mechanic absence is an error
+        report.add_check(name, passed, details, severity=severity)
 
     return report

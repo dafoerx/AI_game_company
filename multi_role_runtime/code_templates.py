@@ -2544,3 +2544,336 @@ def get_color_scheme(visual_style):
         return COLOR_SCHEMES['水墨中国风']
     else:
         return COLOR_SCHEMES['现代简约']
+
+
+# ═══════════════════════════════════════════════════
+# P2: Code Skeleton Library
+# Provides structural skeletons for each scaffolding type.
+# These ensure architectural correctness - the LLM fills in
+# the implementation details while the skeleton guarantees
+# the right methods and interfaces exist.
+# ═══════════════════════════════════════════════════
+
+SKELETON_LIBRARY = {
+    "entity_lifecycle": {
+        "game-state.js": '''\
+/**
+ * {game_title} - Game State Management
+ * Scaffolding: Entity Lifecycle
+ * ═══════════════════════════════════════
+ */
+
+class GameState {{
+  constructor() {{
+    this.reset();
+  }}
+
+  /**
+   * Reset all game state to initial values
+   */
+  reset() {{
+    this.turn = 1;
+
+    // Global resources (from GameData.resources)
+    this.resources = {{}};
+    for (const res of GameData.resources) {{
+      this.resources[res.id] = {{
+        current: res.initial,
+        max: res.max || Infinity,
+        perTurn: res.perTurn || 0,
+      }};
+    }}
+
+    // Per-entity state tracking (CORE of entity lifecycle)
+    this.entityStates = {{}};
+    for (const entity of (GameData.entities || [])) {{
+      if (!entity.unlock_turn || entity.unlock_turn <= 1) {{
+        this._initEntity(entity);
+      }}
+    }}
+    this.unlockedEntities = Object.keys(this.entityStates);
+
+    // Built facilities
+    this.facilities = [];
+
+    // Interaction cooldowns
+    this.cooldowns = {{}};
+
+    // Adoption tracking
+    this.adoptionHistory = [];
+    this.pendingRevisits = [];
+
+    // Events
+    this.triggeredEvents = [];
+
+    // Stats
+    this.stats = {{
+      totalTurns: 0,
+      interactionsPerformed: 0,
+      successfulInteractions: 0,
+      adoptionsCompleted: 0,
+      totalMatchScore: 0,
+    }};
+  }}
+
+  _initEntity(entityDef) {{
+    // AI FILL: Initialize per-entity state from entityDef.initial_state
+  }}
+
+  /**
+   * Process one game turn
+   * @returns {{resourceChanges, entityUpdates, messages, newEntities, revisits}}
+   */
+  processTurn() {{
+    // AI FILL: Resource settlement, entity state decay/recovery,
+    // unlock new entities, process cooldowns, check revisits
+  }}
+
+  /**
+   * Process player interaction with a specific entity
+   * @param {{string}} entityId
+   * @param {{string}} interactionId
+   * @returns {{success, interactionSucceeded, message, entityState}}
+   */
+  interact(entityId, interactionId) {{
+    // AI FILL: Check cooldown, check min_trust, check resource cost,
+    // calculate success rate (considering trauma_tags), apply effects
+  }}
+
+  /**
+   * Calculate adoptability score for an entity
+   * @param {{object}} entityState
+   * @returns {{number}} 0-100
+   */
+  _calculateAdoptability(entityState) {{
+    // AI FILL: Composite score from trust, stress, health
+  }}
+
+  /**
+   * Calculate match score between entity and adopter family
+   * @param {{string}} entityId
+   * @param {{string}} familyId
+   * @returns {{number}} 0-100
+   */
+  calculateMatchScore(entityId, familyId) {{
+    // AI FILL: Species preference, trust threshold, stress threshold,
+    // experience level bonus, patience bonus
+  }}
+
+  /**
+   * Process adoption of an entity by a family
+   * @param {{string}} entityId
+   * @param {{string}} familyId
+   * @returns {{success, matchScore, message, farewell}}
+   */
+  processAdoption(entityId, familyId) {{
+    // AI FILL: Check adoptability, calculate match, update state,
+    // record history, schedule revisit, generate farewell narrative
+  }}
+
+  /**
+   * Build a facility
+   * @param {{string}} facilityId
+   * @returns {{success, message}}
+   */
+  buildFacility(facilityId) {{
+    // AI FILL: Check cost, deduct resources, add facility
+  }}
+
+  /**
+   * Check game end conditions
+   * @returns {{ended, victory, message}}
+   */
+  checkEndCondition() {{
+    // AI FILL: Check defeat conditions, victory conditions, turn limit
+  }}
+
+  /**
+   * Apply event effect to game state
+   * @param {{object}} effect
+   */
+  applyEventEffect(effect) {{
+    // AI FILL: Apply resource changes, entity effects, all-entity effects
+  }}
+
+  /**
+   * Get game statistics
+   * @returns {{object}}
+   */
+  getStats() {{
+    // AI FILL: Return formatted stats
+  }}
+}}
+''',
+        "ui.js": '''\
+/**
+ * {game_title} - UI Management
+ * Scaffolding: Entity Lifecycle
+ * ═══════════════════════════════════════
+ */
+
+const UI = {{
+  selectedEntityId: null,
+
+  init() {{
+    this.initResourcePanel();
+    this.initEntityGallery();
+    this.initFacilityMenu();
+    this.initInteractionPanel();
+  }},
+
+  // ── Resource Panel ──
+  initResourcePanel() {{
+    // AI FILL: Render resource items from GameData.resources
+  }},
+
+  // ── Entity Gallery (CORE UI for entity lifecycle) ──
+  initEntityGallery() {{
+    // AI FILL: Render entity cards with portrait, name, status bars
+  }},
+
+  updateEntityGallery() {{
+    // AI FILL: Update entity cards with current state
+  }},
+
+  selectEntity(entityId) {{
+    // AI FILL: Show entity detail card, update interaction panel
+  }},
+
+  // ── Entity Detail Card ──
+  renderEntityDetail(entityId) {{
+    // AI FILL: Show backstory, state bars (trust/stress/health/attachment),
+    // adoptability indicator, interaction history
+  }},
+
+  // ── Interaction Panel ──
+  initInteractionPanel() {{
+    // AI FILL: Render available interactions for selected entity
+  }},
+
+  updateInteractionPanel(entityId) {{
+    // AI FILL: Update button states based on cooldowns, trust requirements
+  }},
+
+  performInteraction(entityId, interactionId) {{
+    // AI FILL: Call Game.state.interact(), show result, update UI
+  }},
+
+  // ── Facility Menu ──
+  initFacilityMenu() {{
+    // AI FILL: Render facility build options from GameData.facilities
+  }},
+
+  buildFacility(facilityId) {{
+    // AI FILL: Call Game.state.buildFacility(), update UI
+  }},
+
+  // ── Matching Interface ──
+  showMatchingPanel(entityId) {{
+    // AI FILL: Show available families with match scores
+  }},
+
+  // ── Farewell Scene ──
+  showFarewellScene(farewell) {{
+    // AI FILL: Render emotional farewell narrative and photo
+  }},
+
+  // ── Revisit Album ──
+  showRevisitAlbum(revisit) {{
+    // AI FILL: Render post-adoption revisit photos and narrative
+  }},
+
+  // ── Common UI Methods ──
+  updateAll() {{
+    // AI FILL: Update resources, entity gallery, turn display
+  }},
+
+  updateResources() {{
+    // AI FILL: Update resource values with animations
+  }},
+
+  updateTurn() {{
+    // AI FILL: Update turn counter
+  }},
+
+  addLog(message, type) {{
+    // AI FILL: Add log entry with timestamp
+  }},
+
+  initMenuParticles() {{
+    // AI FILL: Create particle effects for main menu
+  }},
+}};
+''',
+    },
+
+    "resource_management": {
+        "game-state.js": '''\
+/**
+ * {game_title} - Game State Management
+ * Scaffolding: Resource Management
+ * ═══════════════════════════════════════
+ */
+
+class GameState {{
+  constructor() {{
+    this.reset();
+  }}
+
+  reset() {{
+    this.turn = 1;
+    this.resources = {{}};
+    for (const res of GameData.resources) {{
+      this.resources[res.id] = {{
+        current: res.initial,
+        max: res.max || Infinity,
+        perTurn: res.perTurn || 0,
+      }};
+    }}
+    this.buildings = [];
+    this.triggeredEvents = [];
+    this.stats = {{ totalTurns: 0, buildingsBuilt: 0, eventsTriggered: 0 }};
+  }}
+
+  processTurn() {{
+    // AI FILL: Calculate resource changes from buildings, apply perTurn
+  }}
+
+  calculateResourceChange(resourceId) {{
+    // AI FILL: Sum perTurn + building produces - building consumes
+  }}
+
+  build(buildingId) {{
+    // AI FILL: Check cost, deduct resources, add building
+  }}
+
+  checkEndCondition() {{
+    // AI FILL: Check failIfZero resources, victory condition, turn limit
+  }}
+
+  applyEventEffect(effect) {{
+    // AI FILL: Apply resource changes, population changes
+  }}
+
+  getStats() {{
+    // AI FILL: Return formatted stats
+  }}
+}}
+''',
+    },
+}
+
+
+def get_skeleton(scaffolding_type: str, module_name: str) -> str:
+    """
+    Get the code skeleton for a given scaffolding type and module.
+
+    Args:
+        scaffolding_type: e.g., "entity_lifecycle", "resource_management"
+        module_name: e.g., "game-state.js", "ui.js"
+
+    Returns:
+        Skeleton code string, or empty string if no skeleton exists.
+    """
+    skeletons = SKELETON_LIBRARY.get(scaffolding_type, {})
+    return skeletons.get(module_name, "")

@@ -35,7 +35,8 @@ from .design_spec import (
     build_scaffolding_prompt_section,
     THEME_MECHANIC_LIBRARY,
 )
-from .validator import run_full_validation
+from .validator import run_full_validation, validate_game_logic
+from .gold_references import get_gold_reference, get_available_references
 
 # ═══════════════════════════════════════════════════
 # 数据层接口契约（DATA SCHEMA）
@@ -263,6 +264,16 @@ class CodeGenerator:
             self._write_file(gen_dir, "js/data.js", data_js)
             state["files_generated"].append("js/data.js")
             self._log(state, "✅ data.js 完成")
+
+            # P0: Incremental validation - verify data.js quality before proceeding
+            self._log(state, "🔍 验证 data.js 数据丰富度...")
+            data_quality = self._validate_data_layer(data_js)
+            if not data_quality["passed"]:
+                self._log(state, f"⚠️ data.js 质量不足: {data_quality['reason']}，尝试重新生成...")
+                data_js = self._gen_data_js(design)
+                self._write_file(gen_dir, "js/data.js", data_js)
+                self._log(state, "🔄 data.js 已重新生成")
+
             state["phases_completed"].append("data_layer")
             self._persist_state(gen_dir, state)
 
@@ -393,6 +404,25 @@ class CodeGenerator:
                 )
                 # Attempt auto-fix for files that failed syntax check
                 self._attempt_auto_fix(gen_dir, state, validation_report)
+
+            # ═══ Phase 11: LLM Self-Review (P1) ═══
+            self._log(state, "🤖 执行 LLM 自审环节...")
+            state["current_phase"] = "llm_self_review"
+            try:
+                review_result = self._llm_self_review(gen_dir, design, state)
+                state["llm_review"] = review_result
+                if review_result.get("critical_issues"):
+                    self._log(
+                        state,
+                        f"⚠️ LLM 自审发现 {len(review_result['critical_issues'])} 个关键问题"
+                    )
+                    # Attempt to fix critical issues found by LLM review
+                    self._attempt_llm_review_fix(gen_dir, state, design, review_result)
+                else:
+                    self._log(state, "✅ LLM 自审通过")
+            except Exception as review_exc:
+                self._log(state, f"⚠️ LLM 自审跳过: {review_exc}")
+            self._persist_state(gen_dir, state)
 
             # ═══ 完成 ═══
             if state["failed_files"]:
@@ -545,6 +575,290 @@ class CodeGenerator:
 
         return "\n".join(sections)
 
+    # ═══════════════════════════════════════════════════
+    # P0: Incremental Data Layer Validation
+    # ═══════════════════════════════════════════════════
+
+    def _validate_data_layer(self, data_js):
+        """
+        Validate data.js quality before proceeding to next generation phase.
+        Checks for minimum content richness based on scaffolding type.
+
+        Returns: { passed: bool, reason: str, metrics: dict }
+        """
+        scaffolding_type = "resource_management"
+        if self._current_theme_mapping:
+            scaffolding_type = self._current_theme_mapping.get(
+                "scaffolding_type", "resource_management"
+            )
+
+        metrics = {
+            "resources_count": 0,
+            "buildings_count": 0,
+            "events_count": 0,
+            "entities_count": 0,
+            "interactions_count": 0,
+            "families_count": 0,
+        }
+
+        # Count resources
+        metrics["resources_count"] = len(
+            re.findall(r"id:\s*['\"](\w+)['\"]", data_js.split("buildings")[0])
+            if "buildings" in data_js else
+            re.findall(r"id:\s*['\"](\w+)['\"]", data_js)
+        )
+
+        # Count buildings/facilities
+        buildings_section = ""
+        for keyword in ["buildings", "facilities"]:
+            if keyword in data_js:
+                start = data_js.find(keyword)
+                # Find the next top-level array
+                end = data_js.find("],", start)
+                if end > start:
+                    buildings_section = data_js[start:end]
+                    break
+        metrics["buildings_count"] = buildings_section.count("id:")
+
+        # Count events
+        if "events" in data_js:
+            events_start = data_js.rfind("events")
+            events_section = data_js[events_start:]
+            metrics["events_count"] = events_section.count("title:")
+
+        # Count entities (for entity_lifecycle scaffolding)
+        if "entities" in data_js:
+            entities_start = data_js.find("entities")
+            entities_end = data_js.find("],", entities_start)
+            if entities_end > entities_start:
+                entities_section = data_js[entities_start:entities_end]
+                metrics["entities_count"] = entities_section.count("id:")
+
+        # Count interactions
+        if "interactions" in data_js:
+            interactions_start = data_js.find("interactions")
+            interactions_end = data_js.find("],", interactions_start)
+            if interactions_end > interactions_start:
+                interactions_section = data_js[interactions_start:interactions_end]
+                metrics["interactions_count"] = interactions_section.count("id:")
+
+        # Count adopter families
+        if "adopter_families" in data_js:
+            families_start = data_js.find("adopter_families")
+            families_end = data_js.find("],", families_start)
+            if families_end > families_start:
+                families_section = data_js[families_start:families_end]
+                metrics["families_count"] = families_section.count("id:")
+
+        # Validate based on scaffolding type
+        if scaffolding_type == "entity_lifecycle":
+            if metrics["entities_count"] < 4:
+                return {
+                    "passed": False,
+                    "reason": f"实体数量不足（{metrics['entities_count']} < 4），entity_lifecycle 类型至少需要 4 个实体",
+                    "metrics": metrics,
+                }
+            if metrics["interactions_count"] < 3:
+                return {
+                    "passed": False,
+                    "reason": f"互动方式不足（{metrics['interactions_count']} < 3），至少需要 3 种互动",
+                    "metrics": metrics,
+                }
+            if metrics["events_count"] < 4:
+                return {
+                    "passed": False,
+                    "reason": f"事件数量不足（{metrics['events_count']} < 4），至少需要 4 个事件",
+                    "metrics": metrics,
+                }
+        else:
+            # resource_management / exploration_management
+            if metrics["resources_count"] < 3:
+                return {
+                    "passed": False,
+                    "reason": f"资源种类不足（{metrics['resources_count']} < 3）",
+                    "metrics": metrics,
+                }
+            if metrics["buildings_count"] < 3:
+                return {
+                    "passed": False,
+                    "reason": f"建筑种类不足（{metrics['buildings_count']} < 3）",
+                    "metrics": metrics,
+                }
+            if metrics["events_count"] < 3:
+                return {
+                    "passed": False,
+                    "reason": f"事件数量不足（{metrics['events_count']} < 3）",
+                    "metrics": metrics,
+                }
+
+        return {"passed": True, "reason": "", "metrics": metrics}
+
+    # ═══════════════════════════════════════════════════
+    # P1: LLM Self-Review
+    # ═══════════════════════════════════════════════════
+
+    LLM_REVIEW_SYSTEM_PROMPT = """\
+你是一位资深的游戏代码审查专家。你的任务是审查 AI 生成的游戏代码，
+判断代码是否真正实现了设计文档中描述的核心玩法和情感体验。
+
+你必须输出严格的 JSON 格式（不要 markdown 代码块包裹）：
+
+{
+  "overall_score": 0-100,
+  "design_match_score": 0-100,
+  "critical_issues": [
+    {
+      "file": "文件名",
+      "issue": "问题描述",
+      "severity": "critical/major/minor",
+      "fix_suggestion": "修复建议"
+    }
+  ],
+  "positive_aspects": ["做得好的方面1", "做得好的方面2"],
+  "summary": "一句话总结"
+}
+
+审查维度：
+1. 设计-实现匹配度：代码是否真正实现了设计文档中的核心机制？
+2. 数据丰富度：实体/事件/互动的数量和质量是否足够？
+3. 核心循环完整性：玩家的主要行为循环是否可以走通？
+4. 情感体验：题材的情感内核是否被机制承载？
+5. 胜利条件：胜利条件是否与题材相关（而非通用数值达标）？
+"""
+
+    def _llm_self_review(self, gen_dir, design, state):
+        """
+        P1: Let another LLM review the generated code against the design spec.
+        Returns a review result dict.
+        """
+        # Collect key files for review
+        review_files = {}
+        for filename in ["data.js", "game-state.js", "main.js"]:
+            filepath = gen_dir / "js" / filename
+            if filepath.exists():
+                content = filepath.read_text(encoding="utf-8", errors="ignore")
+                # Truncate to avoid token limits
+                review_files[filename] = content[:4000] if len(content) > 4000 else content
+
+        if not review_files:
+            return {"overall_score": 0, "critical_issues": [], "summary": "No files to review"}
+
+        # Build review prompt
+        files_section = "\n\n".join(
+            f"### {fname}\n```javascript\n{content}\n```"
+            for fname, content in review_files.items()
+        )
+
+        spec_section = self._build_design_spec_prompt_section()
+
+        user_prompt = f"""
+## 游戏设计信息
+- 名称：{design.get('project_name', '未知')}
+- 主题：{design.get('theme', '未知')}
+- 核心循环：{design.get('core_loop', '未知')}
+- 视觉风格：{design.get('visual_style', '未知')}
+
+{spec_section}
+
+## 生成的代码（需要审查）
+
+{files_section}
+
+请审查以上代码，判断是否真正实现了设计文档中描述的核心玩法。
+特别关注：
+1. data.js 中是否有足够的实体/事件/互动定义？
+2. game-state.js 中是否实现了核心机制（如实体状态追踪、互动处理、匹配算法）？
+3. 胜利条件是否与题材相关？
+4. 是否存在"设计文档描述了但代码没有实现"的功能？
+"""
+
+        raw = self.llm.complete(self.LLM_REVIEW_SYSTEM_PROMPT, user_prompt)
+
+        # Parse JSON response
+        json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw, re.DOTALL)
+        if json_match:
+            raw = json_match.group(1)
+
+        start = raw.find('{')
+        end = raw.rfind('}')
+        if start != -1 and end != -1:
+            raw = raw[start:end + 1]
+
+        try:
+            result = json.loads(raw)
+        except json.JSONDecodeError:
+            result = {
+                "overall_score": 50,
+                "critical_issues": [],
+                "summary": "Review response could not be parsed",
+                "_raw": raw[:500],
+            }
+
+        return result
+
+    def _attempt_llm_review_fix(self, gen_dir, state, design, review_result):
+        """
+        Attempt to fix critical issues found by LLM self-review.
+        Only fixes issues with severity 'critical'.
+        """
+        critical_issues = [
+            i for i in review_result.get("critical_issues", [])
+            if i.get("severity") == "critical"
+        ]
+
+        if not critical_issues:
+            return
+
+        for issue in critical_issues[:3]:  # Fix at most 3 critical issues
+            target_file = issue.get("file", "")
+            fix_suggestion = issue.get("fix_suggestion", "")
+            issue_desc = issue.get("issue", "")
+
+            if not target_file or not fix_suggestion:
+                continue
+
+            file_path = gen_dir / "js" / target_file
+            if not file_path.exists():
+                continue
+
+            self._log(
+                state,
+                f"🔧 LLM 自审修复: {target_file} - {issue_desc[:50]}..."
+            )
+
+            try:
+                current_code = file_path.read_text(encoding="utf-8", errors="ignore")
+
+                fix_prompt = f"""
+以下是游戏「{design.get('project_name', '')}」的 {target_file} 文件，
+LLM 审查发现了一个关键问题需要修复：
+
+## 问题描述
+{issue_desc}
+
+## 修复建议
+{fix_suggestion}
+
+## 当前代码
+```javascript
+{current_code[:6000]}
+```
+
+请输出修复后的完整 {target_file} 代码。
+保持原有的所有功能，只修复上述问题。
+直接输出 JavaScript 代码，不要 markdown 包裹。
+"""
+                fixed_code = self._call_llm_for_code(fix_prompt)
+                self._write_file(gen_dir, f"js/{target_file}", fixed_code)
+                self._log(state, f"✅ {target_file} 已修复")
+
+            except Exception as exc:
+                self._log(state, f"⚠️ {target_file} 修复失败: {exc}")
+
+    # ═══════════════════════════════════════════════════
+    # Post-Generation Validation
+    # ═══════════════════════════════════════════════════
+
     def _run_post_generation_validation(self, gen_dir, state):
         """Run the full validation pipeline after code generation."""
         gen_id = state.get("gen_id", "unknown")
@@ -634,7 +948,7 @@ class CodeGenerator:
             return None
 
     def _gen_data_js(self, design):
-        """生成游戏数据层。"""
+        """生成游戏数据层（P0 改进：注入黄金标准参考 + 多轮增量验证）。"""
         # Build scaffolding requirements
         scaffolding_section = ""
         if self._current_scaffolding:
@@ -654,6 +968,26 @@ class CodeGenerator:
                     f"- {ap}" for ap in aps
                 )
 
+        # P0: Inject gold standard reference
+        scaffolding_type = self._current_theme_mapping.get("scaffolding_type", "resource_management") if self._current_theme_mapping else "resource_management"
+        gold_ref = get_gold_reference(scaffolding_type, "data.js")
+        reference_section = ""
+        if gold_ref:
+            # Truncate if too long to avoid token limits
+            ref_truncated = gold_ref[:6000] if len(gold_ref) > 6000 else gold_ref
+            reference_section = f"""
+## 黄金标准参考实现（请严格参考此代码的结构和质量水平，但内容替换为新游戏主题）
+
+以下是一个高质量的参考实现，你的代码必须达到同等的完整度和质量：
+
+```javascript
+{ref_truncated}
+```
+
+**关键要求**：你的代码必须包含与参考实现相同层次的数据丰富度（实体数量、互动种类、事件数量等），
+不能比参考实现更简陋。
+"""
+
         prompt = f"""
 请为以下游戏生成完整的 data.js 文件。
 
@@ -668,6 +1002,7 @@ class CodeGenerator:
 {scaffolding_section}
 {spec_section}
 {anti_patterns}
+{reference_section}
 
 ## 要求
 1. 所有内容必须围绕游戏主题定制（比如火锅店→食材资源、厨房设备建筑、经营事件）
@@ -709,7 +1044,7 @@ class CodeGenerator:
         return self._call_llm_for_code(prompt)
 
     def _gen_game_state_js(self, design, data_js):
-        """生成游戏状态管理。"""
+        """生成游戏状态管理（P0 改进：注入黄金标准参考）。"""
         # 提取 data.js 中的资源和建筑 id 列表（而不是传完整代码）
         data_summary = self._extract_data_summary(data_js)
 
@@ -731,6 +1066,28 @@ class CodeGenerator:
                 anti_patterns = "\n## 反模式警告\n" + "\n".join(
                     f"- {ap}" for ap in aps
                 )
+
+        # P0: Inject gold standard reference for game-state.js
+        scaffolding_type = self._current_theme_mapping.get("scaffolding_type", "resource_management") if self._current_theme_mapping else "resource_management"
+        gold_ref = get_gold_reference(scaffolding_type, "game-state.js")
+        reference_section = ""
+        if gold_ref:
+            ref_truncated = gold_ref[:8000] if len(gold_ref) > 8000 else gold_ref
+            reference_section = f"""
+## 黄金标准参考实现（请严格参考此代码的结构、方法签名和质量水平）
+
+以下是一个高质量的参考实现，你的代码必须达到同等的完整度和质量：
+
+```javascript
+{ref_truncated}
+```
+
+**关键要求**：
+- 必须包含与参考实现相同层次的方法（interact, calculateMatchScore, processAdoption 等）
+- 必须为每个实体维护独立的状态对象（不是全局资源数字）
+- 必须实现完整的互动成功率计算（考虑实体特性和创伤标签）
+- 必须实现领养匹配算法
+"""
 
         prompt = f"""
 请为游戏「{design['project_name']}」生成 game-state.js 文件。
@@ -770,6 +1127,7 @@ class CodeGenerator:
 6. 如果脚手架要求实体状态追踪，必须为每个实体维护独立的状态对象
 7. 如果脚手架要求互动处理，必须实现 interact(entityId, interactionId) 方法
 8. 如果脚手架要求匹配算法，必须实现 calculateMatchScore(entityId, familyId) 方法
+{reference_section}
 
 直接输出 JavaScript 代码，不要 markdown 包裹。
 """
