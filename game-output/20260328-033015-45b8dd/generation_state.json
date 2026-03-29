@@ -1,16 +1,18 @@
 {
   "gen_id": "20260328-033015-45b8dd",
   "project_id": null,
-  "status": "generating",
+  "status": "failed",
   "created_at": "2026-03-28T03:30:15.657920Z",
-  "finished_at": null,
-  "current_phase": "data_layer",
+  "finished_at": "2026-03-28T03:36:39.969743Z",
+  "current_phase": "game_state",
   "phases_completed": [
     "reading_design",
-    "data_layer"
+    "data_layer",
+    "utils"
   ],
   "files_generated": [
-    "js/data.js"
+    "js/data.js",
+    "js/utils.js"
   ],
   "logs": [
     {
@@ -28,8 +30,24 @@
     {
       "time": "2026-03-28T03:32:05.303356Z",
       "message": "✅ data.js 完成"
+    },
+    {
+      "time": "2026-03-28T03:32:05.303649Z",
+      "message": "🔧 生成工具函数 (utils.js)..."
+    },
+    {
+      "time": "2026-03-28T03:34:39.758454Z",
+      "message": "✅ utils.js 完成"
+    },
+    {
+      "time": "2026-03-28T03:34:39.758778Z",
+      "message": "🎮 生成游戏状态管理 (game-state.js)..."
+    },
+    {
+      "time": "2026-03-28T03:36:39.969759Z",
+      "message": "❌ 代码生成失败: HTTPSConnectionPool(host='capi.quan2go.com', port=443): Read timed out. (read timeout=120)"
     }
   ],
-  "error": null,
+  "error": "HTTPSConnectionPool(host='capi.quan2go.com', port=443): Read timed out. (read timeout=120)",
   "output_dir": "/data/dafoer1/AI_game_company/game-output/20260328-033015-45b8dd"
 }

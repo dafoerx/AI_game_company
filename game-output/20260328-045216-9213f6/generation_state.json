@@ -1,0 +1,116 @@
+{
+  "gen_id": "20260328-045216-9213f6",
+  "project_id": "20260328-035716-bd7663",
+  "project_name": "《中转之家：放心去爱》",
+  "status": "completed",
+  "created_at": "2026-03-28T04:52:16.849546Z",
+  "finished_at": "2026-03-28T05:13:02.224506Z",
+  "current_phase": "done",
+  "phases_completed": [
+    "reading_design",
+    "data_layer",
+    "utils",
+    "game_state",
+    "ui_layer",
+    "events",
+    "main_entry",
+    "html",
+    "css"
+  ],
+  "files_generated": [
+    "js/data.js",
+    "js/utils.js",
+    "js/game-state.js",
+    "js/ui.js",
+    "js/events.js",
+    "js/main.js",
+    "index.html",
+    "css/style.css",
+    "css/animations.css",
+    "README.md"
+  ],
+  "logs": [
+    {
+      "time": "2026-03-28T04:52:16.850408Z",
+      "message": "📖 读取项目设计文档..."
+    },
+    {
+      "time": "2026-03-28T04:52:16.852453Z",
+      "message": "✅ 项目：《中转之家：放心去爱》"
+    },
+    {
+      "time": "2026-03-28T04:52:16.852691Z",
+      "message": "🎲 生成游戏数据层 (data.js)..."
+    },
+    {
+      "time": "2026-03-28T04:54:21.322225Z",
+      "message": "✅ data.js 完成"
+    },
+    {
+      "time": "2026-03-28T04:54:21.322664Z",
+      "message": "🔧 生成工具函数 (utils.js)..."
+    },
+    {
+      "time": "2026-03-28T04:56:32.048876Z",
+      "message": "✅ utils.js 完成"
+    },
+    {
+      "time": "2026-03-28T04:56:32.049209Z",
+      "message": "🎮 生成游戏状态管理 (game-state.js)..."
+    },
+    {
+      "time": "2026-03-28T04:56:34.863530Z",
+      "message": "✅ game-state.js 完成"
+    },
+    {
+      "time": "2026-03-28T04:56:34.863875Z",
+      "message": "🎨 生成 UI 管理层 (ui.js)..."
+    },
+    {
+      "time": "2026-03-28T05:01:57.210990Z",
+      "message": "✅ ui.js 完成"
+    },
+    {
+      "time": "2026-03-28T05:01:57.211384Z",
+      "message": "⚡ 生成事件系统 (events.js)..."
+    },
+    {
+      "time": "2026-03-28T05:03:13.461696Z",
+      "message": "✅ events.js 完成"
+    },
+    {
+      "time": "2026-03-28T05:03:13.462089Z",
+      "message": "🚀 生成主入口 (main.js)..."
+    },
+    {
+      "time": "2026-03-28T05:08:17.912775Z",
+      "message": "✅ main.js 完成"
+    },
+    {
+      "time": "2026-03-28T05:08:17.913178Z",
+      "message": "📄 生成 HTML 页面 (index.html)..."
+    },
+    {
+      "time": "2026-03-28T05:09:35.430422Z",
+      "message": "✅ index.html 完成"
+    },
+    {
+      "time": "2026-03-28T05:09:35.430823Z",
+      "message": "🎨 生成样式和动画 (style.css + animations.css)..."
+    },
+    {
+      "time": "2026-03-28T05:13:02.223485Z",
+      "message": "✅ CSS 完成"
+    },
+    {
+      "time": "2026-03-28T05:13:02.223910Z",
+      "message": "📦 生成 README..."
+    },
+    {
+      "time": "2026-03-28T05:13:02.224513Z",
+      "message": "🎉 代码生成完成！共 10 个文件"
+    }
+  ],
+  "error": null,
+  "output_dir": "/data/dafoer1/AI_game_company/game-output/20260328-045216-9213f6"
+}

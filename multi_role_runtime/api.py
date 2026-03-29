@@ -5,6 +5,8 @@ from flask import Flask, jsonify, request, send_from_directory
 from .engine import ConsensusEngine
 from .project_engine import ProjectEngine
 from .code_generator import CodeGenerator
+from .validator import run_full_validation
+from .design_spec import detect_theme, THEME_MECHANIC_LIBRARY
 
 app = Flask(__name__, static_folder="web")
 engine = ConsensusEngine()
@@ -331,3 +333,123 @@ def serve_generated_static(gen_id, file_path):
     mimetype = mime_types.get(ext, 'application/octet-stream')
     
     return send_from_directory(str(gen_dir), file_path, mimetype=mimetype)
+
+
+# ═══════════════════════════════════════════════════
+# Validation API
+# ═══════════════════════════════════════════════════
+
+@app.route("/api/codegen/<gen_id>/validate", methods=["POST"])
+def validate_generation(gen_id):
+    """
+    Run post-generation validation on a completed code generation.
+    Body: { "run_playtest": true/false }
+    """
+    from pathlib import Path
+    state = code_generator.get_generation(gen_id)
+    if not state:
+        return jsonify({"error": "代码生成任务不存在"}), 404
+
+    gen_dir = Path(state["output_dir"])
+    if not gen_dir.exists():
+        return jsonify({"error": "生成目录不存在"}), 404
+
+    data = request.get_json(silent=True) or {}
+    run_playtest = data.get("run_playtest", True)
+
+    report = run_full_validation(
+        gen_dir=gen_dir,
+        gen_id=gen_id,
+        scaffolding=None,
+        run_playtest=run_playtest,
+    )
+
+    return jsonify(report.to_dict())
+
+
+@app.route("/api/codegen/<gen_id>/validation-report", methods=["GET"])
+def get_validation_report(gen_id):
+    """Get the validation report for a code generation."""
+    state = code_generator.get_generation(gen_id)
+    if not state:
+        return jsonify({"error": "代码生成任务不存在"}), 404
+
+    report = state.get("validation_report")
+    if not report:
+        return jsonify({"error": "尚未执行验证"}), 404
+
+    return jsonify(report)
+
+
+# ═══════════════════════════════════════════════════
+# Design Spec API
+# ═══════════════════════════════════════════════════
+
+@app.route("/api/runs/<run_id>/design-spec", methods=["GET"])
+def get_design_spec(run_id):
+    """Get the design spec generated after a consensus run."""
+    state = engine.get_run(run_id)
+    if not state:
+        return jsonify({"error": "共识运行不存在"}), 404
+
+    spec = state.get("design_spec")
+    if not spec:
+        return jsonify({"error": "该共识运行尚未生成设计规格"}), 404
+
+    return jsonify(spec)
+
+
+@app.route("/api/runs/<run_id>/design-verification", methods=["GET"])
+def get_design_verification(run_id):
+    """Get the design verification report for a consensus run."""
+    state = engine.get_run(run_id)
+    if not state:
+        return jsonify({"error": "共识运行不存在"}), 404
+
+    verification = state.get("design_verification")
+    if not verification:
+        return jsonify({"error": "该共识运行尚未执行设计验证"}), 404
+
+    return jsonify(verification)
+
+
+# ═══════════════════════════════════════════════════
+# Theme-Mechanic Library API
+# ═══════════════════════════════════════════════════
+
+@app.route("/api/theme-library", methods=["GET"])
+def get_theme_library():
+    """Get the full theme-mechanic mapping library."""
+    # Return a simplified version (without data_schema details)
+    result = {}
+    for theme_id, mapping in THEME_MECHANIC_LIBRARY.items():
+        result[theme_id] = {
+            "label": mapping.get("label"),
+            "keywords": mapping.get("keywords", []),
+            "mechanics": list(mapping.get("core_mechanics", {}).keys()),
+            "victory_conditions": mapping.get("victory_conditions", []),
+            "anti_patterns": mapping.get("anti_patterns", []),
+            "scaffolding_type": mapping.get("scaffolding_type"),
+        }
+    return jsonify(result)
+
+
+@app.route("/api/theme-detect", methods=["POST"])
+def detect_theme_api():
+    """
+    Detect game theme from a description.
+    Body: { "description": "流浪动物救助站经营游戏" }
+    """
+    data = request.get_json(silent=True) or {}
+    description = (data.get("description") or "").strip()
+    if not description:
+        return jsonify({"error": "请提供描述文本"}), 400
+
+    mapping = detect_theme(description)
+    return jsonify({
+        "theme_id": mapping.get("theme_id"),
+        "label": mapping.get("label"),
+        "scaffolding_type": mapping.get("scaffolding_type"),
+        "mechanics": list(mapping.get("core_mechanics", {}).keys()),
+        "anti_patterns": mapping.get("anti_patterns", []),
+    })

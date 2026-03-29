@@ -206,6 +206,18 @@ class ProjectEngine:
                 run_result = self.consensus_engine.get_run(run_id)
                 if run_result and run_result.get("status") == "completed":
                     self._log(state, "✅ 任务 %s 共识达成" % task_id)
+                    # Check if design spec was generated
+                    if run_result.get("design_spec"):
+                        self._log(state, "📐 任务 %s 已产出设计规格" % task_id)
+                    if run_result.get("design_verification"):
+                        v = run_result["design_verification"]
+                        status = "✅ 通过" if v.get("passed") else "⚠️ 需改进"
+                        self._log(
+                            state,
+                            "🔍 设计规格验证: %s (得分: %s/100)" % (
+                                status, v.get("score", "?")
+                            )
+                        )
                 else:
                     self._log(state, "⚠️ 任务 %s 共识未完全达成，采用制作人收敛方案" % task_id)
 
@@ -507,6 +519,35 @@ class ProjectEngine:
         lines.append("")
         for run_id in state.get("consensus_runs", []):
             lines.append("- %s" % run_id)
+
+        # Add design spec summary
+        lines.append("")
+        lines.append("## 设计规格产出")
+        lines.append("")
+        has_spec = False
+        for run_id in state.get("consensus_runs", []):
+            run_state = self.consensus_engine.get_run(run_id)
+            if run_state and run_state.get("design_spec"):
+                has_spec = True
+                spec = run_state["design_spec"]
+                entity_count = len(spec.get("entity_definitions", []))
+                interaction_count = len(spec.get("interaction_definitions", []))
+                event_count = len(spec.get("event_definitions", []))
+                lines.append(
+                    "- Run %s: %d 实体, %d 互动, %d 事件" % (
+                        run_id, entity_count, interaction_count, event_count
+                    )
+                )
+                if run_state.get("design_verification"):
+                    v = run_state["design_verification"]
+                    lines.append(
+                        "  - 验证: %s (得分: %s/100)" % (
+                            "通过" if v.get("passed") else "需改进",
+                            v.get("score", "?")
+                        )
+                    )
+        if not has_spec:
+            lines.append("- 未产出设计规格")
 
         lines.append("")
         return "\n".join(lines)

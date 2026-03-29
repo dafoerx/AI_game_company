@@ -29,6 +29,13 @@ from pathlib import Path
 
 from .config import load_config
 from .llm import LLMClient
+from .design_spec import (
+    detect_theme,
+    get_scaffolding,
+    build_scaffolding_prompt_section,
+    THEME_MECHANIC_LIBRARY,
+)
+from .validator import run_full_validation
 
 # ═══════════════════════════════════════════════════
 # 数据层接口契约（DATA SCHEMA）
@@ -162,6 +169,11 @@ class CodeGenerator:
         self.output_dir = self.config.project_drive_dir.parent / "game-output"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Design spec and scaffolding (populated during generation)
+        self._current_design_spec = None
+        self._current_scaffolding = None
+        self._current_theme_mapping = None
+
     # ── 公开 API ──────────────────────────────
 
     def list_generations(self):
@@ -189,6 +201,7 @@ class CodeGenerator:
             "current_phase": "reading_design",
             "phases_completed": [],
             "files_generated": [],
+            "failed_files": [],
             "logs": [],
             "error": None,
             "output_dir": str(self.output_dir / gen_id),
@@ -236,6 +249,10 @@ class CodeGenerator:
             if not state.get("project_name"):
                 state["project_name"] = design['project_name']
             state["phases_completed"].append("reading_design")
+
+            # ═══ Phase 1.5: Load design spec and scaffolding ═══
+            self._log(state, "📐 加载设计规格与脚手架...")
+            self._load_design_spec_and_scaffolding(design, state)
             self._persist_state(gen_dir, state)
 
             # ═══ Phase 2: 生成数据层 (data.js) ═══
@@ -264,10 +281,11 @@ class CodeGenerator:
             self._log(state, "🎮 生成游戏状态管理 (game-state.js)...")
             state["current_phase"] = "game_state"
 
-            game_state_js = self._gen_game_state_js(design, data_js)
-            self._write_file(gen_dir, "js/game-state.js", game_state_js)
-            state["files_generated"].append("js/game-state.js")
-            self._log(state, "✅ game-state.js 完成")
+            game_state_js = self._safe_gen(
+                state, "js/game-state.js",
+                lambda: self._gen_game_state_js(design, data_js),
+                gen_dir,
+            )
             state["phases_completed"].append("game_state")
             self._persist_state(gen_dir, state)
 
@@ -275,10 +293,11 @@ class CodeGenerator:
             self._log(state, "🎨 生成 UI 管理层 (ui.js)...")
             state["current_phase"] = "ui_layer"
 
-            ui_js = self._gen_ui_js(design, data_js, game_state_js)
-            self._write_file(gen_dir, "js/ui.js", ui_js)
-            state["files_generated"].append("js/ui.js")
-            self._log(state, "✅ ui.js 完成")
+            ui_js = self._safe_gen(
+                state, "js/ui.js",
+                lambda: self._gen_ui_js(design, data_js, game_state_js or ""),
+                gen_dir,
+            )
             state["phases_completed"].append("ui_layer")
             self._persist_state(gen_dir, state)
 
@@ -286,10 +305,11 @@ class CodeGenerator:
             self._log(state, "⚡ 生成事件系统 (events.js)...")
             state["current_phase"] = "events"
 
-            events_js = self._gen_events_js(design, data_js, game_state_js)
-            self._write_file(gen_dir, "js/events.js", events_js)
-            state["files_generated"].append("js/events.js")
-            self._log(state, "✅ events.js 完成")
+            events_js = self._safe_gen(
+                state, "js/events.js",
+                lambda: self._gen_events_js(design, data_js, game_state_js or ""),
+                gen_dir,
+            )
             state["phases_completed"].append("events")
             self._persist_state(gen_dir, state)
 
@@ -297,10 +317,11 @@ class CodeGenerator:
             self._log(state, "🚀 生成主入口 (main.js)...")
             state["current_phase"] = "main_entry"
 
-            main_js = self._gen_main_js(design, data_js, game_state_js, ui_js, events_js)
-            self._write_file(gen_dir, "js/main.js", main_js)
-            state["files_generated"].append("js/main.js")
-            self._log(state, "✅ main.js 完成")
+            main_js = self._safe_gen(
+                state, "js/main.js",
+                lambda: self._gen_main_js(design, data_js, game_state_js or "", ui_js or "", events_js or ""),
+                gen_dir,
+            )
             state["phases_completed"].append("main_entry")
             self._persist_state(gen_dir, state)
 
@@ -310,28 +331,39 @@ class CodeGenerator:
 
             # 收集所有已生成的 JS 代码用于 HTML 参考
             all_js = self._collect_code(gen_dir, "js")
-            index_html = self._gen_index_html(design, all_js)
-            self._write_file(gen_dir, "index.html", index_html)
-            state["files_generated"].append("index.html")
-            self._log(state, "✅ index.html 完成")
+            index_html = self._safe_gen(
+                state, "index.html",
+                lambda: self._gen_index_html(design, all_js),
+                gen_dir,
+            )
             state["phases_completed"].append("html")
             self._persist_state(gen_dir, state)
 
-            # ═══ Phase 9: 生成 CSS ═══
-            self._log(state, "🎨 生成样式和动画 (style.css + animations.css)...")
-            state["current_phase"] = "css"
+            # 如果 HTML 生成失败，CSS 阶段无法继续（需要 HTML 作为输入）
+            if not index_html:
+                self._log(state, "❌ index.html 生成失败，跳过 CSS 阶段")
+                state["failed_files"].extend(["css/style.css", "css/animations.css"])
+            else:
+                # ═══ Phase 9: 生成 CSS ═══
+                self._log(state, "🎨 生成样式和动画 (style.css + animations.css)...")
+                state["current_phase"] = "css"
 
-            html_content = (gen_dir / "index.html").read_text(encoding="utf-8")
-            css_content = self._gen_css(design, html_content, ui_js)
-            self._write_file(gen_dir, "css/style.css", css_content)
-            state["files_generated"].append("css/style.css")
+                html_content = (gen_dir / "index.html").read_text(encoding="utf-8")
 
-            animations_css = self._gen_animations_css(design, html_content, css_content)
-            self._write_file(gen_dir, "css/animations.css", animations_css)
-            state["files_generated"].append("css/animations.css")
-            self._log(state, "✅ CSS 完成")
-            state["phases_completed"].append("css")
-            self._persist_state(gen_dir, state)
+                css_content = self._safe_gen(
+                    state, "css/style.css",
+                    lambda: self._gen_css(design, html_content, ui_js or ""),
+                    gen_dir,
+                )
+
+                animations_css = self._safe_gen(
+                    state, "css/animations.css",
+                    lambda: self._gen_animations_css(design, html_content, css_content or ""),
+                    gen_dir,
+                )
+                self._log(state, "✅ CSS 完成")
+                state["phases_completed"].append("css")
+                self._persist_state(gen_dir, state)
 
             # ═══ Phase 10: 生成 README ═══
             self._log(state, "📦 生成 README...")
@@ -339,8 +371,39 @@ class CodeGenerator:
             self._generate_readme(gen_dir, design, state)
             state["files_generated"].append("README.md")
 
+            # ═══ Phase 10.5: Post-generation validation ═══
+            self._log(state, "🔍 执行生成后自动校验...")
+            state["current_phase"] = "validation"
+            validation_report = self._run_post_generation_validation(
+                gen_dir, state
+            )
+            state["validation_report"] = validation_report.to_dict()
+            self._persist_state(gen_dir, state)
+
+            # Write validation report as markdown
+            (gen_dir / "validation_report.md").write_text(
+                validation_report.to_markdown(), encoding="utf-8"
+            )
+            state["files_generated"].append("validation_report.md")
+
+            if not validation_report.passed:
+                self._log(
+                    state,
+                    f"⚠️ 校验发现 {len(validation_report.critical_failures)} 个严重问题"
+                )
+                # Attempt auto-fix for files that failed syntax check
+                self._attempt_auto_fix(gen_dir, state, validation_report)
+
             # ═══ 完成 ═══
-            state["status"] = "completed"
+            if state["failed_files"]:
+                state["status"] = "completed_with_errors"
+                failed_list = ", ".join(state["failed_files"])
+                self._log(state, f"⚠️ 代码生成完成，但以下文件生成失败: {failed_list}")
+            elif not validation_report.passed:
+                state["status"] = "completed_with_warnings"
+                self._log(state, f"⚠️ 代码生成完成，但校验未完全通过")
+            else:
+                state["status"] = "completed"
             state["current_phase"] = "done"
             state["finished_at"] = datetime.utcnow().isoformat() + "Z"
             self._log(state, f"🎉 代码生成完成！共 {len(state['files_generated'])} 个文件")
@@ -356,11 +419,241 @@ class CodeGenerator:
             self._persist_state(gen_dir, state)
 
     # ═══════════════════════════════════════════════════
+    # Design Spec & Scaffolding Integration
+    # ═══════════════════════════════════════════════════
+
+    def _load_design_spec_and_scaffolding(self, design, state):
+        """
+        Load design spec from consensus output and determine scaffolding type.
+        This is the key bridge between consensus and code generation.
+        """
+        # Try to load design spec from the latest consensus run
+        spec = self._find_latest_design_spec()
+        if spec:
+            self._current_design_spec = spec
+            self._log(state, "✅ 已加载共识产出的设计规格")
+            state["design_spec_source"] = "consensus"
+        else:
+            self._log(state, "⚠️ 未找到共识设计规格，将从设计文档推断")
+            state["design_spec_source"] = "inferred"
+
+        # Detect theme and get scaffolding
+        theme_mapping = detect_theme(
+            design.get("theme", ""),
+            design.get("theme", ""),
+            design.get("core_loop", ""),
+        )
+        self._current_theme_mapping = theme_mapping
+        self._current_scaffolding = get_scaffolding(
+            theme_mapping.get("scaffolding_type", "resource_management")
+        )
+
+        state["theme_detected"] = theme_mapping.get("label", "Unknown")
+        state["scaffolding_type"] = theme_mapping.get("scaffolding_type", "resource_management")
+        self._log(
+            state,
+            f"📐 游戏类型: {theme_mapping.get('label')} | "
+            f"脚手架: {theme_mapping.get('scaffolding_type')}"
+        )
+
+    def _find_latest_design_spec(self):
+        """Find the latest design_spec.json from consensus runs."""
+        runs_dir = self.config.output_dir
+        if not runs_dir.exists():
+            return None
+
+        # Look for design_spec.json in run directories, newest first
+        run_dirs = sorted(
+            [d for d in runs_dir.iterdir() if d.is_dir() and d.name != "projects"],
+            reverse=True,
+        )
+
+        for run_dir in run_dirs[:10]:  # Check last 10 runs
+            spec_path = run_dir / "design_spec.json"
+            if spec_path.exists():
+                try:
+                    content = spec_path.read_text(encoding="utf-8")
+                    spec = json.loads(content)
+                    if spec and not spec.get("error"):
+                        return spec
+                except (json.JSONDecodeError, IOError):
+                    continue
+
+        return None
+
+    def _build_design_spec_prompt_section(self):
+        """
+        Build a prompt section from the design spec that can be injected
+        into each module's generation prompt.
+        """
+        if not self._current_design_spec:
+            return ""
+
+        spec = self._current_design_spec
+        sections = ["\n## 结构化设计规格（来自多角色共识，必须严格遵循）"]
+
+        # Entity definitions
+        entities = spec.get("entity_definitions", [])
+        if entities:
+            sections.append("\n### 实体定义（每个实体必须有独立的状态追踪）")
+            for e in entities[:8]:
+                sections.append(
+                    f"- {e.get('id', '?')}: {e.get('name', '?')} "
+                    f"({e.get('species', '?')}) - {e.get('backstory', '')[:60]}... "
+                    f"初始状态: trust={e.get('initial_state', {}).get('trust', 0)}, "
+                    f"stress={e.get('initial_state', {}).get('stress', 0)}"
+                )
+
+        # Interactions
+        interactions = spec.get("interaction_definitions", [])
+        if interactions:
+            sections.append("\n### 互动定义")
+            for i in interactions[:6]:
+                sections.append(
+                    f"- {i.get('id', '?')}: {i.get('name', '?')} "
+                    f"({i.get('icon', '?')}) - {i.get('description', '')[:50]}"
+                )
+
+        # State machine
+        sm = spec.get("state_machine", {})
+        if sm.get("states"):
+            sections.append("\n### 状态机")
+            sections.append(f"状态: {', '.join(sm['states'])}")
+            for t in sm.get("transitions", [])[:8]:
+                sections.append(
+                    f"  {t.get('from', '?')} → {t.get('to', '?')}: {t.get('condition', '?')}"
+                )
+
+        # Adopter families / matching targets
+        families = spec.get("adopter_families", [])
+        if families:
+            sections.append("\n### 领养家庭/匹配目标")
+            for f in families[:5]:
+                sections.append(
+                    f"- {f.get('id', '?')}: {f.get('name', '?')} - {f.get('description', '')[:50]}"
+                )
+
+        # Victory conditions
+        vc = spec.get("victory_conditions", [])
+        if vc:
+            sections.append("\n### 胜利条件")
+            for v in vc:
+                sections.append(
+                    f"- {v.get('type', '?')}: {v.get('description', '?')} "
+                    f"({v.get('formula', '')})"
+                )
+
+        return "\n".join(sections)
+
+    def _run_post_generation_validation(self, gen_dir, state):
+        """Run the full validation pipeline after code generation."""
+        gen_id = state.get("gen_id", "unknown")
+        return run_full_validation(
+            gen_dir=gen_dir,
+            gen_id=gen_id,
+            scaffolding=self._current_scaffolding,
+            run_playtest=True,
+        )
+
+    def _attempt_auto_fix(self, gen_dir, state, report):
+        """
+        Attempt to auto-fix critical validation failures.
+        Currently handles: files with API error content instead of code.
+        """
+        for check in report.checks:
+            if not check["passed"] and check["severity"] == "error":
+                # Check if it's a file with API error content
+                if "API error instead of code" in check.get("details", ""):
+                    file_stem = check["name"].replace("js_syntax_", "")
+                    file_path = gen_dir / "js" / f"{file_stem}.js"
+                    if file_path.exists():
+                        self._log(
+                            state,
+                            f"🔄 尝试重新生成 {file_stem}.js..."
+                        )
+                        try:
+                            design = self._collect_design_context()
+                            data_js = ""
+                            data_path = gen_dir / "js" / "data.js"
+                            if data_path.exists():
+                                data_js = data_path.read_text(
+                                    encoding="utf-8", errors="ignore"
+                                )
+
+                            if file_stem == "game-state":
+                                code = self._gen_game_state_js(design, data_js)
+                            elif file_stem == "ui":
+                                code = self._gen_ui_js(design, data_js, "")
+                            elif file_stem == "events":
+                                code = self._gen_events_js(design, data_js, "")
+                            elif file_stem == "main":
+                                code = self._gen_main_js(
+                                    design, data_js, "", "", ""
+                                )
+                            else:
+                                continue
+
+                            self._write_file(gen_dir, f"js/{file_stem}.js", code)
+                            self._log(
+                                state,
+                                f"✅ {file_stem}.js 重新生成成功"
+                            )
+                            # Remove from failed_files if it was there
+                            rel = f"js/{file_stem}.js"
+                            if rel in state["failed_files"]:
+                                state["failed_files"].remove(rel)
+                        except Exception as exc:
+                            self._log(
+                                state,
+                                f"❌ {file_stem}.js 重新生成失败: {exc}"
+                            )
+
+    # ═══════════════════════════════════════════════════
     # 各模块生成方法（LLM 全量定制）
     # ═══════════════════════════════════════════════════
 
+    def _safe_gen(self, state, rel_path, gen_fn, gen_dir):
+        """
+        安全地生成单个文件。
+
+        如果 gen_fn() 抛出异常（LLM 返回错误/校验不通过），
+        不中断整体流程，而是：
+        1. 记录到 state["failed_files"]
+        2. 打印警告日志
+        3. 返回 None（后续阶段可以根据 None 做降级处理）
+        """
+        try:
+            code = gen_fn()
+            self._write_file(gen_dir, rel_path, code)
+            state["files_generated"].append(rel_path)
+            self._log(state, f"✅ {rel_path} 完成")
+            return code
+        except Exception as exc:
+            state["failed_files"].append(rel_path)
+            self._log(state, f"⚠️ {rel_path} 生成失败: {exc}")
+            return None
+
     def _gen_data_js(self, design):
         """生成游戏数据层。"""
+        # Build scaffolding requirements
+        scaffolding_section = ""
+        if self._current_scaffolding:
+            scaffolding_section = build_scaffolding_prompt_section(
+                self._current_scaffolding, "data.js"
+            )
+
+        # Build design spec section
+        spec_section = self._build_design_spec_prompt_section()
+
+        # Build anti-patterns section
+        anti_patterns = ""
+        if self._current_theme_mapping:
+            aps = self._current_theme_mapping.get("anti_patterns", [])
+            if aps:
+                anti_patterns = "\n## 反模式警告（绝对不要犯以下错误）\n" + "\n".join(
+                    f"- {ap}" for ap in aps
+                )
+
         prompt = f"""
 请为以下游戏生成完整的 data.js 文件。
 
@@ -372,6 +665,9 @@ class CodeGenerator:
 
 ## 接口契约（必须严格遵守！）
 {DATA_SCHEMA_DOC}
+{scaffolding_section}
+{spec_section}
+{anti_patterns}
 
 ## 要求
 1. 所有内容必须围绕游戏主题定制（比如火锅店→食材资源、厨房设备建筑、经营事件）
@@ -382,6 +678,9 @@ class CodeGenerator:
 6. 不要添加 validateGameData 之类的校验函数
 7. 变量名必须是 `GameData`，使用 const 声明
 8. 可以定义 victoryCondition 为一个函数
+9. 如果设计规格中定义了实体（如动物、角色），必须在 GameData 中包含完整的实体数组
+10. 如果设计规格中定义了互动方式，必须在 GameData 中包含互动定义数组
+11. 如果设计规格中定义了匹配目标（如领养家庭），必须在 GameData 中包含匹配目标数组
 
 直接输出 JavaScript 代码，不要 markdown 包裹。
 """
@@ -413,6 +712,26 @@ class CodeGenerator:
         """生成游戏状态管理。"""
         # 提取 data.js 中的资源和建筑 id 列表（而不是传完整代码）
         data_summary = self._extract_data_summary(data_js)
+
+        # Build scaffolding requirements
+        scaffolding_section = ""
+        if self._current_scaffolding:
+            scaffolding_section = build_scaffolding_prompt_section(
+                self._current_scaffolding, "game-state.js"
+            )
+
+        # Build design spec section
+        spec_section = self._build_design_spec_prompt_section()
+
+        # Build anti-patterns section
+        anti_patterns = ""
+        if self._current_theme_mapping:
+            aps = self._current_theme_mapping.get("anti_patterns", [])
+            if aps:
+                anti_patterns = "\n## 反模式警告\n" + "\n".join(
+                    f"- {ap}" for ap in aps
+                )
+
         prompt = f"""
 请为游戏「{design['project_name']}」生成 game-state.js 文件。
 
@@ -427,6 +746,9 @@ class CodeGenerator:
 
 ## 接口契约
 {DATA_SCHEMA_DOC}
+{scaffolding_section}
+{spec_section}
+{anti_patterns}
 
 ## 要求
 1. 定义 GameState class，包含：
@@ -445,6 +767,9 @@ class CodeGenerator:
    - `effect.population` = 数值
    - `effect.message` = 字符串
 5. 不要重新定义 GameData，它来自 data.js（在 HTML 中先加载）
+6. 如果脚手架要求实体状态追踪，必须为每个实体维护独立的状态对象
+7. 如果脚手架要求互动处理，必须实现 interact(entityId, interactionId) 方法
+8. 如果脚手架要求匹配算法，必须实现 calculateMatchScore(entityId, familyId) 方法
 
 直接输出 JavaScript 代码，不要 markdown 包裹。
 """
@@ -453,12 +778,25 @@ class CodeGenerator:
     def _gen_ui_js(self, design, data_js, game_state_js):
         """生成 UI 管理层。"""
         data_summary = self._extract_data_summary(data_js)
+
+        # Build scaffolding requirements
+        scaffolding_section = ""
+        if self._current_scaffolding:
+            scaffolding_section = build_scaffolding_prompt_section(
+                self._current_scaffolding, "ui.js"
+            )
+
+        # Build design spec section
+        spec_section = self._build_design_spec_prompt_section()
+
         prompt = f"""
 请为游戏「{design['project_name']}」生成 ui.js 文件。
 
 ## 游戏主题与视觉风格
 {design['visual_style']}
 {design['theme']}
+{scaffolding_section}
+{spec_section}
 
 ## data.js 数据概要（UI 需要读取这些数据）
 {data_summary}
@@ -515,11 +853,24 @@ class CodeGenerator:
     def _gen_events_js(self, design, data_js, game_state_js):
         """生成事件系统。"""
         data_summary = self._extract_data_summary(data_js)
+
+        # Build scaffolding requirements
+        scaffolding_section = ""
+        if self._current_scaffolding:
+            scaffolding_section = build_scaffolding_prompt_section(
+                self._current_scaffolding, "events.js"
+            )
+
+        # Build design spec section
+        spec_section = self._build_design_spec_prompt_section()
+
         prompt = f"""
 请为游戏「{design['project_name']}」生成 events.js 文件。
 
 ## data.js 数据概要
 {data_summary}
+{scaffolding_section}
+{spec_section}
 
 ## GameState 提供的方法
 - Game.state.applyEventEffect(effect) — 应用事件效果
@@ -561,6 +912,13 @@ class CodeGenerator:
 
     def _gen_main_js(self, design, data_js, game_state_js, ui_js, events_js):
         """生成主入口。"""
+        # Build scaffolding requirements
+        scaffolding_section = ""
+        if self._current_scaffolding:
+            scaffolding_section = build_scaffolding_prompt_section(
+                self._current_scaffolding, "main.js"
+            )
+
         prompt = f"""
 请为游戏「{design['project_name']}」生成 main.js 主入口文件。
 
@@ -568,6 +926,7 @@ class CodeGenerator:
 - 名称：{design['project_name']}
 - 主题：{design['theme']}
 - 核心循环：{design['core_loop']}
+{scaffolding_section}
 
 ## 已有模块（main.js 需要调用这些）
 - GameData（来自 data.js）：游戏数据
@@ -804,13 +1163,14 @@ class CodeGenerator:
         summary_parts = []
         
         # 提取资源 ID 和名称
+        # 注意：data.js 中 id 和 name 通常不在同一行，需要 re.DOTALL 跨行匹配
         import re as _re
-        resource_ids = _re.findall(r"id:\s*['\"](\w+)['\"].*?name:\s*['\"]([^'\"]+)['\"]", data_js)
+        resource_ids = _re.findall(r"id:\s*['\"](\w+)['\"].*?name:\s*['\"]([^'\"]+)['\"]", data_js, _re.DOTALL)
         if resource_ids:
             summary_parts.append("资源列表：" + ", ".join(f"{rid}({rname})" for rid, rname in resource_ids[:10]))
         
         # 提取建筑 ID 和名称
-        building_matches = _re.findall(r"id:\s*['\"](\w+)['\"].*?name:\s*['\"]([^'\"]+)['\"].*?cost:\s*\{([^}]+)\}", data_js)
+        building_matches = _re.findall(r"id:\s*['\"](\w+)['\"].*?name:\s*['\"]([^'\"]+)['\"].*?cost:\s*\{([^}]+)\}", data_js, _re.DOTALL)
         if building_matches:
             buildings_desc = []
             for bid, bname, bcost in building_matches[:10]:
@@ -895,10 +1255,53 @@ class CodeGenerator:
 - 背景：深灰渐变
 """
 
-    def _call_llm_for_code(self, prompt):
-        """调用 LLM 生成代码并提取纯代码。"""
-        raw = self.llm.complete(SYSTEM_PROMPT_BASE, prompt)
+    # 代码文件的最小合理长度（字节）
+    _MIN_CODE_LENGTH = 100
+    # 合法代码中应至少包含的关键词之一
+    _CODE_INDICATORS = [
+        'function', 'class', 'const ', 'let ', 'var ', 'return',  # JS
+        '<html', '<div', '<script', '<!DOCTYPE',                   # HTML
+        '{', '}', ':', ';',                                        # CSS / 通用
+        '@keyframes', '@media', '.animate',                        # CSS 动画
+    ]
 
+    def _call_llm_for_code(self, prompt, max_retries=2):
+        """
+        调用 LLM 生成代码并提取纯代码。
+
+        增加质量校验：
+        1. 长度检查：合法代码不应短于 _MIN_CODE_LENGTH
+        2. 内容检查：必须包含至少一个代码关键词
+        3. 错误检查：不应包含已知的错误模式
+        如果校验不通过，会重试 max_retries 次。
+        """
+        last_error = None
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                raw = self.llm.complete(SYSTEM_PROMPT_BASE, prompt)
+                code = self._extract_code(raw)
+
+                # ── 质量校验 ──
+                self._validate_code_output(code)
+
+                return code
+
+            except (ValueError, RuntimeError) as exc:
+                last_error = exc
+                if attempt < max_retries:
+                    import time
+                    wait = 5 * attempt
+                    print(f"[CodeGen] ⚠️ 代码质量校验失败（第 {attempt} 次）: {exc}，{wait}s 后重试...")
+                    time.sleep(wait)
+                else:
+                    print(f"[CodeGen] ❌ 代码生成重试 {max_retries} 次仍失败: {exc}")
+                    raise
+
+        raise last_error  # 不应到达这里，但作为安全兜底
+
+    def _extract_code(self, raw):
+        """从 LLM 原始返回中提取纯代码内容。"""
         # 去除可能的 markdown 代码块包裹
         # 匹配 ```javascript ... ``` 或 ```html ... ``` 或 ```css ... ```
         code_block = re.search(r'```(?:javascript|html|css|js)?\s*\n(.*?)```', raw, re.DOTALL)
@@ -916,6 +1319,32 @@ class CodeGenerator:
             return '\n'.join(lines).strip()
 
         return raw.strip()
+
+    def _validate_code_output(self, code):
+        """
+        校验 LLM 生成的代码内容是否合理。
+
+        Raises:
+            ValueError: 内容不符合代码文件的最低质量要求
+        """
+        if not code:
+            raise ValueError("LLM 返回了空内容")
+
+        # 长度校验
+        if len(code) < self._MIN_CODE_LENGTH:
+            raise ValueError(
+                f"LLM 生成的内容过短（{len(code)} 字符 < {self._MIN_CODE_LENGTH}），"
+                f"可能是错误信息: {code[:200]}"
+            )
+
+        # 关键词校验：至少包含一个代码指示符
+        code_lower = code.lower()
+        has_code_indicator = any(indicator.lower() in code_lower for indicator in self._CODE_INDICATORS)
+        if not has_code_indicator:
+            raise ValueError(
+                f"LLM 生成的内容不像有效代码（缺少任何代码关键词），"
+                f"内容前200字符: {code[:200]}"
+            )
 
     def _collect_design_context(self):
         """收集设计文档上下文。"""

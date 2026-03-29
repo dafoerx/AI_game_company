@@ -1,0 +1,1 @@
+codex: status=500 Internal Server Error

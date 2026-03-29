@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>《中转之家：放心去爱》</title>
+  <meta name="description" content="在温暖绘本风格的中转之家里，接收、疗愈与送养流浪动物，学会爱与放手。">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- 1. 加载屏幕 -->
+    <section id="loading-screen" class="screen active" aria-live="polite">
+      <div class="loading-decor loading-decor-left">🐾</div>
+      <div class="loading-decor loading-decor-right">🧡</div>
+
+      <div class="loading-content">
+        <h1 class="game-title gradient-title">《中转之家：放心去爱》</h1>
+        <p class="game-subtitle">把害怕变成依赖，把告别变成新的开始</p>
+
+        <div class="loading-progress-wrap">
+          <div class="loading-progress-bar">
+            <div id="loading-progress-fill" class="loading-progress-fill"></div>
+          </div>
+          <p id="loading-status-text" class="loading-status-text">正在整理毛孩子档案...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 主菜单 -->
+    <section id="main-menu" class="screen">
+      <div id="menu-particles" aria-hidden="true"></div>
+
+      <div class="menu-content card">
+        <div class="menu-emoji">🏡🐶🐱</div>
+        <h1 class="menu-title glow-title">《中转之家：放心去爱》</h1>
+        <p class="menu-tagline">接收 · 疗愈 · 放手 · 回访</p>
+
+        <div class="menu-buttons">
+          <button class="btn btn-primary btn-large" onclick="Game.startNewGame()">开始游戏</button>
+          <button class="btn btn-secondary" onclick="Game.showSettings()">游戏设置</button>
+          <button class="btn btn-secondary" onclick="Game.showHelp()">游戏帮助</button>
+        </div>
+
+        <div class="menu-footnote">
+          <span>📸 记录每次相遇与告别</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 游戏主界面 -->
+    <section id="game-screen" class="screen">
+
+      <!-- 顶部栏 -->
+      <header class="game-header">
+        <div class="header-left">
+          <div class="header-item">
+            <span class="label">第</span>
+            <span id="game-time" class="value">1</span>
+            <span class="label">回合</span>
+          </div>
+          <div class="header-item phase-item">
+            <span class="label">当前阶段：</span>
+            <span id="current-phase" class="value">接收新成员</span>
+          </div>
+        </div>
+
+        <div id="resource-panel" class="resource-panel" aria-label="资源面板">
+          <!-- 由 JS 动态生成 -->
+        </div>
+
+        <div class="header-right">
+          <button id="pause-btn" class="btn btn-ghost">⏸ 暂停</button>
+          <button id="menu-btn" class="btn btn-ghost">☰ 菜单</button>
+        </div>
+      </header>
+
+      <!-- 主区域 -->
+      <main class="game-main">
+        <!-- 左侧 -->
+        <aside class="side-panel left-panel">
+          <section class="panel-card">
+            <h3 class="panel-title">🩺 状态总览</h3>
+            <div id="status-overview" class="panel-content">
+              <div class="empty-tip">今天还没有更新状态，去看看新来的毛孩子吧。</div>
+            </div>
+          </section>
+
+          <section class="panel-card">
+            <h3 class="panel-title">✅ 今日任务</h3>
+            <div id="task-list" class="panel-content">
+              <div class="empty-tip">任务将随事件推进自动更新。</div>
+            </div>
+          </section>
+        </aside>
+
+        <!-- 中央 -->
+        <section class="center-area">
+          <div id="game-viewport" class="game-viewport">
+            <div class="viewport-overlay">
+              <div class="viewport-title">中转之家庭院</div>
+              <div class="viewport-subtitle">点击角色进行观察、陪伴与互动</div>
+            </div>
+
+            <div class="viewport-decor viewport-decor-1">🌿</div>
+            <div class="viewport-decor viewport-decor-2">🧸</div>
+            <div class="viewport-decor viewport-decor-3">📷</div>
+          </div>
+
+          <div class="action-bar">
+            <button id="observe-btn" class="btn btn-soft">👀 行为观察</button>
+            <button id="companion-btn" class="btn btn-soft">🤝 陪伴互动</button>
+            <button id="post-btn" class="btn btn-soft">📱 发布领养卡</button>
+            <button id="next-turn-btn" class="btn btn-primary">⏭ 下一回合</button>
+          </div>
+        </section>
+
+        <!-- 右侧 -->
+        <aside class="side-panel right-panel">
+          <section class="panel-card">
+            <h3 class="panel-title">🛠 建造与功能</h3>
+            <div id="build-menu" class="panel-content">
+              <button class="build-item">🧺 安抚角落</button>
+              <button class="build-item">🧠 行为评估台</button>
+              <button class="build-item">🎬 视频拼贴墙</button>
+              <button class="build-item">🌼 轻松散步区</button>
+            </div>
+          </section>
+
+          <section class="panel-card log-card">
+            <h3 class="panel-title">📝 游戏日志</h3>
+            <div id="game-log" class="panel-content log-content">
+              <div class="log-item">欢迎来到中转之家，今天也请温柔对待每一次相遇。</div>
+            </div>
+          </section>
+        </aside>
+      </main>
+
+      <!-- 底部栏 -->
+      <footer class="game-footer">
+        <div id="footer-tip">提示：观察反应细节，先理解它们，再给出正确的陪伴。</div>
+      </footer>
+    </section>
+
+    <!-- 4. 事件弹窗 -->
+    <div id="event-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="event-title">
+      <div class="modal-content event-content">
+        <div class="modal-header">
+          <div id="event-icon" class="event-icon">🐾</div>
+          <div class="event-header-text">
+            <h2 id="event-title">事件标题</h2>
+            <p id="event-description">事件描述内容</p>
+          </div>
+          <button id="event-close-btn" class="icon-close-btn" aria-label="关闭事件弹窗">✕</button>
+        </div>
+        <div id="event-choices" class="event-choices"></div>
+      </div>
+    </div>
+
+    <!-- 5. 设置弹窗 -->
+    <div id="settings-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="modal-content settings-content">
+        <div class="modal-header">
+          <h2 id="settings-title">⚙ 游戏设置</h2>
+          <button id="settings-close-btn" class="icon-close-btn" aria-label="关闭设置">✕</button>
+        </div>
+
+        <div class="settings-group">
+          <label for="game-speed">游戏速度</label>
+          <div class="setting-row">
+            <input id="game-speed" type="range" min="1" max="5" step="1" value="3">
+            <span id="game-speed-value">3x</span>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <label for="sound-toggle">音效开关</label>
+          <div class="setting-row switch-row">
+            <input id="sound-toggle" type="checkbox" checked>
+            <span class="switch-label">已开启</span>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <label for="animation-toggle">动画开关</label>
+          <div class="setting-row switch-row">
+            <input id="animation-toggle" type="checkbox" checked>
+            <span class="switch-label">已开启</span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="settings-save-btn" class="btn btn-primary">保存设置</button>
+          <button id="settings-cancel-btn" class="btn btn-secondary">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. 帮助弹窗 -->
+    <div id="help-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <div class="modal-content help-content">
+        <div class="modal-header">
+          <h2 id="help-title">📖 游戏帮助</h2>
+          <button id="help-close-btn" class="icon-close-btn" aria-label="关闭帮助">✕</button>
+        </div>
+
+        <div class="help-section">
+          <h3>🎯 游戏目标</h3>
+          <p>经营中转之家，识别每只动物的心结并修复信任，匹配合适家庭后完成送养，并通过回访见证它们的新生活。</p>
+        </div>
+
+        <div class="help-section">
+          <h3>🕹 操作说明</h3>
+          <ul>
+            <li>在<strong>游戏视口</strong>点击动物卡，查看背景档案与行为反馈。</li>
+            <li>使用<strong>行为观察</strong>和<strong>陪伴互动</strong>降低应激、提升信任。</li>
+            <li>达到可领养状态后，制作并发布<strong>征婚视频卡片</strong>。</li>
+            <li>根据家庭匹配度做送养决策，完成后获得回访照片/短视频。</li>
+            <li>点击<strong>下一回合</strong>推进日程，触发新事件与新个体。</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>💡 温柔建议</h3>
+          <p>不是每次“留下”才是爱。适时放手，让它去更适合的家，也是疗愈的一部分。</p>
+        </div>
+
+        <div class="modal-actions">
+          <button id="help-confirm-btn" class="btn btn-primary">我明白了</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. 游戏结束 -->
+    <section id="game-over" class="screen">
+      <div class="game-over-content card">
+        <div class="game-over-emoji">🌈🐾</div>
+        <h1 id="game-over-title">阶段总结</h1>
+        <p id="game-over-message">你让许多不敢靠近人的孩子，重新相信了拥抱。</p>
+        <div id="game-over-stats" class="game-over-stats">
+          <div class="stat-item">
+            <span class="stat-label">成功送养</span>
+            <span class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">回访好评</span>
+            <span class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">建立信任</span>
+            <span class="stat-value">0</span>
+          </div>
+        </div>
+        <div class="game-over-actions">
+          <button id="restart-btn" class="btn btn-primary">重新开始</button>
+          <button id="back-menu-btn" class="btn btn-secondary">返回主菜单</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/game-state.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/events.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

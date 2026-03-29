@@ -1,3 +1,6 @@
 Flask==1.1.4
 requests==2.27.1
 python-dotenv==0.19.2
+# Optional: for automated playtest validation
+# Install with: pip install playwright && playwright install chromium
+# playwright>=1.40.0
