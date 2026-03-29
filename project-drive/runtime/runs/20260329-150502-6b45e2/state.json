@@ -1,0 +1,16 @@
+{
+  "run_id": "20260329-150502-6b45e2",
+  "status": "running",
+  "goal": "围绕 TASK-001（设计动物心理状态机与领养判定规则）达成跨角色共识。\n任务描述：定义“信任/压力/康复/依恋”四维状态、状态变化来源、阈值与冲突关系；明确何时可进入试领养、何时建议继续观察，避免单一数值通关。\n验收标准：输出可执行数值表与状态流转图，覆盖至少狗/猫/兔3类模板；单只动物完整救助周期控制在20-30分钟可体验完成；存在至少2种失败或延后送养反馈，避免线性必胜\n请各角色从自身职责出发给出判断和可执行建议。",
+  "started_at": "2026-03-29T15:05:02.625327Z",
+  "finished_at": null,
+  "current_round": 0,
+  "max_rounds": 4,
+  "turns": [],
+  "summary": "",
+  "error": null,
+  "design_spec": null,
+  "design_verification": null,
+  "theme_mapping": null,
+  "escalation_triggered": false
+}
